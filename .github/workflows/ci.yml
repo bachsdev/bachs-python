@@ -32,7 +32,7 @@ jobs:
         run: python -m pip install -e ".[dev]"
 
       - name: Lint
-        run: ruff check src tests
+        run: ruff check src tests scripts
 
       - name: Check types, including the static fixtures
         run: mypy

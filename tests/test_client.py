@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
@@ -261,3 +262,11 @@ def test_30_writes_send_once_preserve_keys_and_expose_uncertain_outcomes(
         with pytest.raises(BachsConfigError):
             mock.client().products.create(payload, idempotency_key=bad_key)
     assert len(mock.calls) == 1
+
+
+def test_version_matches_pyproject() -> None:
+    tomllib = pytest.importorskip("tomllib")  # Python 3.11+
+    import bachs
+
+    project = tomllib.loads((Path(__file__).parent.parent / "pyproject.toml").read_text())["project"]
+    assert bachs.__version__ == project["version"]
