@@ -83,7 +83,7 @@ event = webhooks.construct_event(raw_body, request_headers, webhook_signing_secr
 # Persist/check event["id"] atomically in your application before applying effects.
 ```
 
-`raw_body` is the request body as `bytes` or `str` before JSON parsing, for example `await request.body()` in Starlette/FastAPI, `request.get_data()` in Flask or `request.body` in Django. `request_headers` is any header mapping (a `dict` or the framework's headers object); repeated signature headers are rejected. `tolerance` defaults to 300 seconds. Verification follows the TypeScript SDK: `X-Bachs-Signature-V2` is preferred, any matching `v1` digest is accepted during rotation, and malformed V2 does not fall back to the legacy headers.
+`raw_body` is the request body as `bytes` or `str` before JSON parsing, for example `await request.body()` in Starlette/FastAPI, `request.get_data()` in Flask or `request.body` in Django. `request_headers` is a `dict` or your framework's `request.headers` (Starlette/FastAPI, Flask and Django all work); repeated signature headers are rejected. `tolerance` defaults to 300 seconds. Verification follows the TypeScript SDK: `X-Bachs-Signature-V2` is preferred, any matching `v1` digest is accepted during rotation, and malformed V2 does not fall back to the legacy headers.
 
 ## Request behavior and errors
 

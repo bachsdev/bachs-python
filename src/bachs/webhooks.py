@@ -8,24 +8,34 @@ import json
 import math
 import re
 import time
-from collections.abc import Mapping
-from typing import Any, Union, cast
+from collections.abc import Iterable, Mapping
+from typing import Any, Protocol, Union, cast
 
 from ._errors import BachsConfigError, BachsWebhookError
 from .types import WebhookEvent
 
-__all__ = ["construct_event", "WebhookHeaders"]
+__all__ = ["construct_event", "SupportsHeaderItems", "WebhookHeaders"]
 
-# A dict, or any framework header mapping (Starlette, Werkzeug, Django). Duplicate headers are rejected.
-WebhookHeaders = Mapping[str, Union[str, list[str], tuple[str, ...], None]]
+
+class SupportsHeaderItems(Protocol):
+    """Any header object whose ``items()`` yields ``(name, value)`` pairs, such as Flask's ``request.headers``."""
+
+    def items(self) -> Iterable[tuple[str, Any]]: ...
+
+
+# A dict, or a framework's request.headers (Starlette/FastAPI, Flask/Werkzeug, Django). Duplicates are rejected.
+WebhookHeaders = Union[Mapping[str, Union[str, list[str], tuple[str, ...], None]], SupportsHeaderItems]
 
 _MAX_SAFE_INTEGER = 2**53 - 1
 
 
-def _header(headers: Mapping[str, Any], name: str) -> str | None:
+def _header(headers: WebhookHeaders, name: str) -> str | None:
     wanted = name.lower()
-    # items() exposes repeated headers separately for multi-value mappings such as Starlette's and Werkzeug's.
-    values = [value for key, value in headers.items() if isinstance(key, str) and key.lower() == wanted]
+    # items() yields repeated headers separately for multi-value headers such as Starlette's and Werkzeug's.
+    try:
+        values = [value for key, value in headers.items() if isinstance(key, str) and key.lower() == wanted]
+    except (TypeError, ValueError) as cause:
+        raise BachsConfigError("Webhook headers must yield (name, value) pairs from items().") from cause
     if len(values) > 1:
         raise BachsWebhookError("Duplicate webhook header.")
     value = values[0] if values else None
@@ -69,8 +79,8 @@ def construct_event(
         raise BachsConfigError("A webhook signing secret is required.")
     if not isinstance(raw_body, (str, bytes, bytearray, memoryview)):
         raise BachsConfigError("Webhook body must be raw text or bytes, before JSON parsing.")
-    if not isinstance(headers, Mapping):
-        raise BachsConfigError("Webhook headers must be a header mapping.")
+    if isinstance(headers, (str, bytes)) or not callable(getattr(headers, "items", None)):
+        raise BachsConfigError("Webhook headers must be a header mapping, such as your framework's request.headers.")
     if (
         isinstance(tolerance, bool)
         or not isinstance(tolerance, (int, float))

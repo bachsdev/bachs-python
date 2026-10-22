@@ -100,6 +100,33 @@ def test_45_malformed_or_duplicate_signature_headers_fail_without_fallback(heade
         webhooks.construct_event(raw, headers, secret)
 
 
+def test_framework_header_objects_verify_and_reject_duplicates() -> None:
+    from email.message import Message
+
+    from werkzeug.datastructures import EnvironHeaders, Headers
+
+    v2 = f"t={seconds},v1={signature(raw)}"
+    # Flask's request.headers is an EnvironHeaders, which is not a collections.abc.Mapping.
+    environ = {"HTTP_X_BACHS_SIGNATURE_V2": v2, "CONTENT_TYPE": "application/json"}
+    stdlib = Message()
+    stdlib["X-Bachs-Signature-V2"] = v2
+    for headers in (EnvironHeaders(environ), Headers({"X-Bachs-Signature-V2": v2}), stdlib):
+        assert webhooks.construct_event(raw, headers, secret) == event, type(headers).__name__
+    repeated = Headers([("X-Bachs-Signature-V2", v2), ("x-bachs-signature-v2", v2)])
+    with pytest.raises(BachsWebhookError):
+        webhooks.construct_event(raw, repeated, secret)
+    for not_headers in ("X-Bachs-Signature-V2: x", b"x", [("X-Bachs-Signature-V2", v2)], 42):
+        with pytest.raises(BachsConfigError):
+            webhooks.construct_event(raw, not_headers, secret)  # type: ignore[arg-type]
+
+    class BrokenItems:
+        def items(self) -> list[str]:
+            return ["not-a-pair"]
+
+    with pytest.raises(BachsConfigError):
+        webhooks.construct_event(raw, BrokenItems(), secret)  # type: ignore[arg-type]
+
+
 def test_46_only_signed_valid_json_envelopes_are_returned_and_misuse_is_rejected() -> None:
     for value in ("not-json", "null", "[]", "{}", '{"id": NaN}', json.dumps({**event, "data": None}),
                   json.dumps({**event, "id": ""})):

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bachs"
-version = "1.0.0"
+version = "1.0.1"
 description = "Official Bachs server-side Python SDK"
 readme = "README.md"
 license = "MIT"
@@ -29,7 +29,7 @@ Source = "https://github.com/bachsdev/bachs-python"
 Changelog = "https://github.com/bachsdev/bachs-python/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "mypy>=1.11", "ruff>=0.6", "trio>=0.25"]
+dev = ["pytest>=8", "mypy>=1.11", "ruff>=0.6", "trio>=0.25", "werkzeug>=3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bachs"]

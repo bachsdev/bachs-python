@@ -1,5 +1,7 @@
 """Static fixtures, checked by mypy and never run. Each ignore marks an expected error, like @ts-expect-error."""
 
+from werkzeug.datastructures import Headers
+
 from bachs import Bachs, webhooks
 from bachs.types import CreateCheckoutSessionRequest, CreatePayoutRequest
 
@@ -17,6 +19,9 @@ bachs.subscriptions.cancel("sub_synthetic", {"cancel_at_period_end": True})
 bachs.payouts.create(same)
 bachs.payouts.create(cross)
 webhooks.construct_event("{}", {}, "synthetic")
+webhooks.construct_event("{}", Headers(), "synthetic")
+# A list of pairs is not a header object.
+webhooks.construct_event("{}", [("X-Bachs-Signature-V2", "t=1")], "synthetic")  # type: ignore[arg-type]
 # Checkout modes are mutually exclusive.
 both: CreateCheckoutSessionRequest = {"product_cart": [], "pricing": {"currency": "USD"}}  # type: ignore[assignment]
 # An offering or raw price is required.

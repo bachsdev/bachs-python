@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- `webhooks.construct_event` accepts Flask's `request.headers` (Werkzeug headers) and other header objects with an `items()` method. 1.0.0 rejected them with `BachsConfigError`; dicts, Starlette/FastAPI and Django headers already worked.
+
 ## 1.0.0
 
 First release of the official Bachs server-side Python SDK, ported from the TypeScript SDK `1.0.0`.
