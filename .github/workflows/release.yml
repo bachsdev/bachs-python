@@ -1,6 +1,6 @@
 name: Release
 
-# Publishes bachs to PyPI when a version tag (for example v1.0.0a1) is pushed.
+# Publishes bachs to PyPI when a version tag (for example v1.0.0) is pushed.
 # Authentication uses PyPI trusted publishing (OIDC), so no PyPI token is stored
 # in this repository. The project's trusted publisher on pypi.org must name this
 # repository, this workflow file and the "pypi" environment.
@@ -59,7 +59,7 @@ jobs:
           if-no-files-found: error
 
   # Only this job can request a PyPI token, and it runs nothing from the repository.
-  # pip skips pre-releases such as 1.0.0a1 unless asked for with --pre.
+  # pip skips pre-releases such as 1.1.0rc1 unless asked for with --pre.
   publish:
     needs: build
     runs-on: ubuntu-latest

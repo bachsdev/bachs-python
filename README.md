@@ -1,6 +1,10 @@
 # Bachs Python SDK
 
-> **Status: alpha (`1.0.0a1`), not yet published.** A port of the [Bachs TypeScript SDK](https://github.com/bachsdev/bachs-node) `1.0.0` with the same resources, request semantics and webhook verification. The API may change before a stable release.
+A port of the [Bachs TypeScript SDK](https://github.com/bachsdev/bachs-node) `1.0.0` with the same resources, request semantics and webhook verification.
+
+```sh
+pip install bachs
+```
 
 Official server-side Python SDK for Bachs, with a sync client (`Bachs`) and an async client (`AsyncBachs`) for asyncio or trio. Python 3.10 or newer. Built on [`httpx`](https://www.python-httpx.org/) and `anyio`.
 
@@ -124,3 +128,5 @@ python -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ```
 
 `tests/` ports the TypeScript SDK's 30 local scenarios. `tests/test_async.py` runs `AsyncBachs` on asyncio and trio, checks that it sends exactly the same requests as `Bachs` for every method, and covers the exact deadline and cancellation (scenario 28). `tests/types/` holds static fixtures that mypy checks: each `# type: ignore[...]` marks an expected error, and strict mode fails if that error stops occurring. GitHub Actions runs these checks on Python 3.10 to 3.14 for every push and pull request.
+
+These are local tests against simulated responses. The request semantics, response checks and webhook verification follow the TypeScript SDK, whose `1.0.0` was accepted against the Bachs sandbox. The Python SDK itself, including its HTTP layer and `AsyncBachs`, has not yet been run against the live sandbox.

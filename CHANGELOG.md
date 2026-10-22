@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.0.0a1 (unreleased)
+## 1.0.0
 
-First alpha of the official Bachs server-side Python SDK, ported from the TypeScript SDK `1.0.0`.
+First release of the official Bachs server-side Python SDK, ported from the TypeScript SDK `1.0.0`.
 
 - Resources: products, checkout sessions, subscriptions, customer portal sessions, payments, balances, banks, payout destinations, payout quotes and payouts.
 - Webhooks: `webhooks.construct_event` verifies `X-Bachs-Signature-V2` against the raw body, checks the timestamp tolerance, and accepts any valid `v1` signature during secret rotation.

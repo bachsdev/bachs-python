@@ -24,16 +24,16 @@ stored anywhere, and PyPI records which commit and workflow run built each file.
 3. Tag the merge commit and push the tag, with a `v` in front of the version:
 
    ```bash
-   git tag v1.0.0a1
-   git push origin v1.0.0a1
+   git tag v1.0.0
+   git push origin v1.0.0
    ```
 
 4. Watch the **Release** workflow. It checks that the tag matches
    `pyproject.toml`, runs lint, type checks and tests, builds the sdist and
    wheel, verifies their contents and publishes. Pre-release versions such as
-   `1.0.0a1` or `1.0.0rc1` are only installed by `pip install --pre bachs` or an
+   `1.1.0a1` or `1.1.0rc1` are only installed by `pip install --pre bachs` or an
    exact pin, so `pip install bachs` keeps resolving to the last stable release.
-5. Confirm with `pip index versions bachs --pre`.
+5. Confirm with `pip index versions bachs`.
 
 PyPI never accepts the same version twice, even after a file is deleted. If a
 release is broken, fix it and release a new version.
@@ -42,4 +42,4 @@ release is broken, fix it and release a new version.
 
 Yank the placeholder (needs a PyPI owner, once): on pypi.org, open `bachs` >
 **Manage project** > **Releases** > `0.0.1` > **Options** > **Yank**, with the
-reason "Placeholder. Install bachs 1.0.0a1 or later."
+reason "Placeholder. Install bachs 1.0.0 or later."
