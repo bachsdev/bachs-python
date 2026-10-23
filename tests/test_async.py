@@ -72,10 +72,30 @@ OPERATIONS: list[tuple[str, Callable[[Any], Any], Any]] = [
     ("payouts.create", lambda c: c.payouts.create(**{"destination": "pd_x", "quote_id": "pqt_x"},
                                                   idempotency_key="k2"), payout),
     ("payouts.get", lambda c: c.payouts.get("po_x"), payout),
-    ("payouts.list", lambda c: c.payouts.list(**{"offset": 0}), {"items": [payout], "total": 1}),
+    ("payouts.list", lambda c: c.payouts.list(offset=0), {"items": [payout], "total": 1}),
+    ("products.list_all", lambda c: _first(c.products.list_all(limit=1)), {"items": [product], "pagination": {}}),
+    ("payments.list_all", lambda c: _first(c.payments.list_all(limit=1)), {"items": [], "pagination": pagination}),
+    ("subscriptions.list_all", lambda c: _first(c.subscriptions.list_all()),
+     {"items": [subscription], "pagination": {}}),
+    ("payout_destinations.list_all", lambda c: _first(c.payout_destinations.list_all()),
+     {"destinations": [destination], "total": 1, "limit": 20, "offset": 0}),
+    ("payouts.list_all", lambda c: _first(c.payouts.list_all(limit=1)), {"items": [payout], "total": 1}),
 ]
 WRITES = {name for name, _, _ in OPERATIONS if name.split(".")[1] in {"create", "cancel", "create_session",
                                                                        "resolve_account"}}
+
+
+def _first(iterator: Any) -> Any:
+    """The first item of a sync or async iterator (None when empty); awaitable in the async case."""
+    if hasattr(iterator, "__aiter__"):
+
+        async def take() -> Any:
+            async for item in iterator:
+                return item
+            return None
+
+        return take()
+    return next(iter(iterator), None)
 
 
 @pytest.fixture
@@ -104,9 +124,16 @@ def test_every_method_has_an_async_twin_with_the_same_signature() -> None:
         assert public == [m for m in dir(async_resource) if not m.startswith("_")]
         for method in public:
             assert f"{resource}.{method}" in names, f"{resource}.{method} is missing from OPERATIONS"
-            assert inspect.iscoroutinefunction(getattr(async_resource, method))
-            assert inspect.signature(getattr(sync_resource, method)) == inspect.signature(
-                getattr(async_resource, method))
+            if method == "list_all":
+                # An async iterator is used with `async for`, not awaited, so it is not a coroutine function.
+                assert inspect.isasyncgenfunction(getattr(async_resource, method)) or hasattr(
+                    getattr(async_resource, method)(), "__aiter__"
+                )
+            else:
+                assert inspect.iscoroutinefunction(getattr(async_resource, method))
+            # Parameters must match exactly; return annotations differ only by Iterator vs AsyncIterator.
+            assert inspect.signature(getattr(sync_resource, method)).parameters == inspect.signature(
+                getattr(async_resource, method)).parameters
     assert async_client.webhooks is webhooks and KEY not in repr(async_client)
 
 
@@ -117,7 +144,12 @@ async def test_async_and_sync_clients_send_identical_requests_and_return_the_sam
     sync_mock, async_mock = Mock(responses=[response]), Mock(responses=[response])
     sync_result = operation(sync_mock.client())
     async_result = await operation(async_mock.async_client())
-    assert sync_result == async_result and sync_result.to_dict() == response
+    assert sync_result == async_result
+    if name.endswith(".list_all"):
+        items = response.get("items", response.get("destinations"))
+        assert (None if not items else items[0]) == (None if sync_result is None else sync_result.to_dict())
+    else:
+        assert sync_result.to_dict() == response
     (sent_sync,), (sent_async,) = sync_mock.calls, async_mock.calls
     assert (sent_sync.method, str(sent_sync.url), sent_sync.body) == (
         sent_async.method, str(sent_async.url), sent_async.body)

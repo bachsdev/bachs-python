@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from .. import types as t
 from .._decoders import decode_payout, decode_payouts
 from .._errors import BachsConfigError
+from .._pagination import async_offset_pages, offset_pages
 from .._params import NOT_GIVEN, NotGiven, NotGivenOr, body
 from .._transport import id_path
 from ._base import AsyncResource, Resource
@@ -74,6 +76,23 @@ class Payouts(Resource):
             max_retries=max_retries,
         )
 
+    def list_all(
+        self,
+        *,
+        status_filter: NotGivenOr[t.PayoutStatusFilter] = NOT_GIVEN,
+        limit: NotGivenOr[int] = NOT_GIVEN,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> Iterator[t.Payout]:
+        """Every item, one at a time, fetching each page only when it is reached."""
+
+        def fetch(offset: int) -> t.PayoutList:
+            return self.list(
+                limit=limit, offset=offset, status_filter=status_filter, timeout=timeout, max_retries=max_retries
+            )
+
+        return offset_pages(fetch, "items", limit)
+
 
 class AsyncPayouts(AsyncResource):
     async def create(
@@ -128,3 +147,20 @@ class AsyncPayouts(AsyncResource):
             timeout=timeout,
             max_retries=max_retries,
         )
+
+    def list_all(
+        self,
+        *,
+        status_filter: NotGivenOr[t.PayoutStatusFilter] = NOT_GIVEN,
+        limit: NotGivenOr[int] = NOT_GIVEN,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> AsyncIterator[t.Payout]:
+        """Every item, one at a time, fetching each page only when it is reached."""
+
+        async def fetch(offset: int) -> t.PayoutList:
+            return await self.list(
+                limit=limit, offset=offset, status_filter=status_filter, timeout=timeout, max_retries=max_retries
+            )
+
+        return async_offset_pages(fetch, "items", limit)

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
+
 from .. import types as t
 from .._decoders import decode_subscription, decode_subscriptions
+from .._pagination import async_offset_pages, offset_pages
 from .._params import NOT_GIVEN, NotGivenOr, body
 from .._transport import id_path
 from ._base import AsyncResource, Resource
@@ -38,6 +41,29 @@ class Subscriptions(Resource):
             timeout=timeout,
             max_retries=max_retries,
         )
+
+    def list_all(
+        self,
+        *,
+        customer_id: NotGivenOr[str] = NOT_GIVEN,
+        status: NotGivenOr[t.SubscriptionStatusFilter] = NOT_GIVEN,
+        limit: NotGivenOr[int] = NOT_GIVEN,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> Iterator[t.Subscription]:
+        """Every item, one at a time, fetching each page only when it is reached."""
+
+        def fetch(offset: int) -> t.SubscriptionList:
+            return self.list(
+                limit=limit,
+                offset=offset,
+                customer_id=customer_id,
+                status=status,
+                timeout=timeout,
+                max_retries=max_retries,
+            )
+
+        return offset_pages(fetch, "items", limit)
 
     def cancel(
         self,
@@ -91,6 +117,29 @@ class AsyncSubscriptions(AsyncResource):
             timeout=timeout,
             max_retries=max_retries,
         )
+
+    def list_all(
+        self,
+        *,
+        customer_id: NotGivenOr[str] = NOT_GIVEN,
+        status: NotGivenOr[t.SubscriptionStatusFilter] = NOT_GIVEN,
+        limit: NotGivenOr[int] = NOT_GIVEN,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> AsyncIterator[t.Subscription]:
+        """Every item, one at a time, fetching each page only when it is reached."""
+
+        async def fetch(offset: int) -> t.SubscriptionList:
+            return await self.list(
+                limit=limit,
+                offset=offset,
+                customer_id=customer_id,
+                status=status,
+                timeout=timeout,
+                max_retries=max_retries,
+            )
+
+        return async_offset_pages(fetch, "items", limit)
 
     async def cancel(
         self,

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
+
 from .. import types as t
 from .._decoders import decode_destination, decode_destinations
+from .._pagination import async_offset_pages, offset_pages
 from .._params import NOT_GIVEN, NotGivenOr, body
 from .._transport import id_path
 from ._base import AsyncResource, Resource
@@ -85,6 +88,24 @@ class PayoutDestinations(Resource):
             max_retries=max_retries,
         )
 
+    def list_all(
+        self,
+        *,
+        currency: NotGivenOr[str] = NOT_GIVEN,
+        status: NotGivenOr[t.PayoutDestinationStatusFilter] = NOT_GIVEN,
+        limit: NotGivenOr[int] = NOT_GIVEN,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> Iterator[t.PayoutDestination]:
+        """Every destination, one at a time, fetching each page only when it is reached."""
+
+        def fetch(offset: int) -> t.PayoutDestinationList:
+            return self.list(
+                limit=limit, offset=offset, currency=currency, status=status, timeout=timeout, max_retries=max_retries
+            )
+
+        return offset_pages(fetch, "destinations", limit)
+
 
 class AsyncPayoutDestinations(AsyncResource):
     async def create(
@@ -163,3 +184,21 @@ class AsyncPayoutDestinations(AsyncResource):
             timeout=timeout,
             max_retries=max_retries,
         )
+
+    def list_all(
+        self,
+        *,
+        currency: NotGivenOr[str] = NOT_GIVEN,
+        status: NotGivenOr[t.PayoutDestinationStatusFilter] = NOT_GIVEN,
+        limit: NotGivenOr[int] = NOT_GIVEN,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> AsyncIterator[t.PayoutDestination]:
+        """Every destination, one at a time, fetching each page only when it is reached."""
+
+        async def fetch(offset: int) -> t.PayoutDestinationList:
+            return await self.list(
+                limit=limit, offset=offset, currency=currency, status=status, timeout=timeout, max_retries=max_retries
+            )
+
+        return async_offset_pages(fetch, "destinations", limit)

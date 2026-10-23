@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
+from typing import Any
+
 from .. import types as t
 from .._decoders import decode_product, decode_product_list
+from .._pagination import async_cursor_pages, cursor_pages
 from .._params import NOT_GIVEN, NotGivenOr, body
 from .._transport import id_path
 from ._base import AsyncResource, Resource
@@ -58,6 +62,23 @@ class Products(Resource):
             max_retries=max_retries,
         )
 
+    def list_all(
+        self,
+        *,
+        include_archived: NotGivenOr[bool] = NOT_GIVEN,
+        limit: NotGivenOr[int] = NOT_GIVEN,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> Iterator[t.Product]:
+        """Every item, one at a time, fetching each page only when it is reached."""
+
+        def fetch(cursor: Any) -> t.ProductList:
+            return self.list(
+                limit=limit, cursor=cursor, include_archived=include_archived, timeout=timeout, max_retries=max_retries
+            )
+
+        return cursor_pages(fetch, "items")
+
 
 class AsyncProducts(AsyncResource):
     async def create(
@@ -109,3 +130,20 @@ class AsyncProducts(AsyncResource):
             timeout=timeout,
             max_retries=max_retries,
         )
+
+    def list_all(
+        self,
+        *,
+        include_archived: NotGivenOr[bool] = NOT_GIVEN,
+        limit: NotGivenOr[int] = NOT_GIVEN,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> AsyncIterator[t.Product]:
+        """Every item, one at a time, fetching each page only when it is reached."""
+
+        async def fetch(cursor: Any) -> t.ProductList:
+            return await self.list(
+                limit=limit, cursor=cursor, include_archived=include_archived, timeout=timeout, max_retries=max_retries
+            )
+
+        return async_cursor_pages(fetch, "items")
