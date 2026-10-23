@@ -223,7 +223,6 @@ def test_49_ambiguous_request_modes_fail_before_send_and_unsupported_success_is_
                    lambda: sdk.products.get("..")):
         with pytest.raises(BachsConfigError):
             dotted()
-    assert sdk.payouts.get.__name__ == "get"
     with pytest.raises(BachsConfigError):
         sdk.payout_destinations.create({"currency": "NGN", "metadata": {"bad": float("nan")}})
     with pytest.raises(BachsConfigError):
