@@ -80,12 +80,12 @@ def test_22_creation_preserves_amounts_omission_null_keys_and_input(server: Any)
     fixed: Any = {"name": "Pro Plan", "price": {"currency": "USD", "amount": "12.00",
                                                 "currency_options": [{"currency": "NGN", "amount": "12000.00"}]}}
     original = copy.deepcopy(fixed)
-    result = sdk.products.create(fixed, idempotency_key="catalog-pro-plan")
+    result = sdk.products.create(**fixed, idempotency_key="catalog-pro-plan")
     free: Any = {"name": "Free Plan", "price": {"currency": "USD", "price_type": "free", "amount": None}}
     custom: Any = {"name": "Donation", "price": {"currency": "USD", "price_type": "custom", "preset_amount": "12.00",
                                                  "minimum_amount": None}}
-    sdk.products.create(free)
-    sdk.products.create(custom)
+    sdk.products.create(**free)
+    sdk.products.create(**custom)
     assert len(records) == 3 and all(r.method == "POST" and r.path == "/v1/products" for r in records)
     assert fixed == original, "The caller's input must not be modified."
     assert [json.loads(r.body) for r in records] == [fixed, free, custom]
@@ -113,7 +113,7 @@ def test_24_listing_preserves_filters_envelope_and_explicit_pagination(server: A
                                                  "limit": 2}, "future_envelope": True}
     base_url, records = server(lambda _record: respond(page))
     sdk = Bachs(api_key=KEY, environment="sandbox", base_url=base_url)
-    result = sdk.products.list({"limit": 2, "cursor": "cursor+ /?", "include_archived": False})
+    result = sdk.products.list(**{"limit": 2, "cursor": "cursor+ /?", "include_archived": False})
     query = parse_qs(urlsplit(records[0].path).query)
     assert query == {"cursor": ["cursor+ /?"], "limit": ["2"], "include_archived": ["false"]}
     assert result.to_dict() == page
@@ -246,7 +246,7 @@ def test_30_writes_send_once_preserve_keys_and_expose_uncertain_outcomes(
     base_url, records = server(lambda _record: respond(failure, 500))
     with pytest.raises(BachsApiError) as caught:
         Bachs(api_key=KEY, environment="sandbox", base_url=base_url, max_retries=5).products.create(
-            payload, idempotency_key="catalog-pro-plan"
+            **payload, idempotency_key="catalog-pro-plan"
         )
     assert caught.value.status == 500 and caught.value.outcome_unknown is True
     assert len(records) == 1 and records[0].headers["idempotency-key"] == "catalog-pro-plan"
@@ -255,14 +255,14 @@ def test_30_writes_send_once_preserve_keys_and_expose_uncertain_outcomes(
     cause = httpx.ReadError("Response lost")
     mock.responses = [cause]
     with pytest.raises(BachsNetworkError) as lost:
-        mock.client(max_retries=5).products.create(payload, idempotency_key="catalog-pro-plan")
+        mock.client(max_retries=5).products.create(**payload, idempotency_key="catalog-pro-plan")
     assert lost.value.outcome_unknown is True and lost.value.__cause__ is cause
     assert len(mock.calls) == 1 and mock.calls[0].headers["idempotency-key"] == "catalog-pro-plan"
     assert clock.sleeps == []
 
     for bad_key in (" bad key ", "", "a\nb"):
         with pytest.raises(BachsConfigError):
-            mock.client().products.create(payload, idempotency_key=bad_key)
+            mock.client().products.create(**payload, idempotency_key=bad_key)
     assert len(mock.calls) == 1
 
 

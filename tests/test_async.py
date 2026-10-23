@@ -43,36 +43,36 @@ payout = {"id": "po_x", "status": "pending", "amount": "1.00", "currency": "USD"
 
 # Every public method, with the response it needs. The parity test sends each through both clients.
 OPERATIONS: list[tuple[str, Callable[[Any], Any], Any]] = [
-    ("products.create", lambda c: c.products.create({"name": "P", "price": {"currency": "USD", "amount": "1.00"}},
+    ("products.create", lambda c: c.products.create(**{"name": "P", "price": {"currency": "USD", "amount": "1.00"}},
                                                     idempotency_key="k1"), product),
     ("products.get", lambda c: c.products.get("prod/a"), product),
-    ("products.list", lambda c: c.products.list({"limit": 1, "include_archived": True, "ignored": 1}),
+    ("products.list", lambda c: c.products.list(limit=1, include_archived=True),
      {"items": [product], "pagination": {}}),
-    ("checkout_sessions.create", lambda c: c.checkout_sessions.create({"pricing": {"currency": "USD"}}), created),
+    ("checkout_sessions.create", lambda c: c.checkout_sessions.create(**{"pricing": {"currency": "USD"}}), created),
     ("checkout_sessions.get", lambda c: c.checkout_sessions.get("chk_x"), {"checkout_id": "chk_x", "status": "open"}),
     ("payments.get", lambda c: c.payments.get("pay_x"), payment),
-    ("payments.list", lambda c: c.payments.list({"status_filter": "succeeded"}),
+    ("payments.list", lambda c: c.payments.list(**{"status_filter": "succeeded"}),
      {"items": [], "pagination": pagination}),
     ("subscriptions.get", lambda c: c.subscriptions.get("sub_x"), subscription),
-    ("subscriptions.list", lambda c: c.subscriptions.list({"customer_id": "cust_x"}),
+    ("subscriptions.list", lambda c: c.subscriptions.list(**{"customer_id": "cust_x"}),
      {"items": [subscription], "pagination": {}}),
     ("subscriptions.cancel", lambda c: c.subscriptions.cancel("sub_x"), subscription),
     ("customer_portal.create_session", lambda c: c.customer_portal.create_session("cust/x"),
      {"id": "psn_x", "url": "https://portal.example.com/s"}),
     ("balances.get", lambda c: c.balances.get(), {"account_id": "a", "total_balance_usd": "0", "balances": []}),
-    ("banks.list", lambda c: c.banks.list({"country": "NG"}), {"country": "NG", "banks": []}),
-    ("banks.resolve_account", lambda c: c.banks.resolve_account({"account_number": "0", "bank_code": "001"}),
+    ("banks.list", lambda c: c.banks.list(**{"country": "NG"}), {"country": "NG", "banks": []}),
+    ("banks.resolve_account", lambda c: c.banks.resolve_account(**{"account_number": "0", "bank_code": "001"}),
      {"resolved": False, "account_name": None, "account_number": None, "message": "no"}),
-    ("payout_destinations.create", lambda c: c.payout_destinations.create({"currency": "NGN"}), destination),
+    ("payout_destinations.create", lambda c: c.payout_destinations.create(**{"currency": "NGN"}), destination),
     ("payout_destinations.get", lambda c: c.payout_destinations.get("pd_x"), destination),
-    ("payout_destinations.list", lambda c: c.payout_destinations.list({"status": "approved"}),
+    ("payout_destinations.list", lambda c: c.payout_destinations.list(**{"status": "approved"}),
      {"destinations": [], "total": 0, "limit": 20, "offset": 0}),
-    ("payout_quotes.create", lambda c: c.payout_quotes.create({"from_currency": "USD", "to_currency": "NGN",
+    ("payout_quotes.create", lambda c: c.payout_quotes.create(**{"from_currency": "USD", "to_currency": "NGN",
                                                                "amount": "1.00"}), quote),
-    ("payouts.create", lambda c: c.payouts.create({"destination": "pd_x", "quote_id": "pqt_x"},
+    ("payouts.create", lambda c: c.payouts.create(**{"destination": "pd_x", "quote_id": "pqt_x"},
                                                   idempotency_key="k2"), payout),
     ("payouts.get", lambda c: c.payouts.get("po_x"), payout),
-    ("payouts.list", lambda c: c.payouts.list({"offset": 0}), {"items": [payout], "total": 1}),
+    ("payouts.list", lambda c: c.payouts.list(**{"offset": 0}), {"items": [payout], "total": 1}),
 ]
 WRITES = {name for name, _, _ in OPERATIONS if name.split(".")[1] in {"create", "cancel", "create_session",
                                                                        "resolve_account"}}
@@ -174,13 +174,13 @@ async def test_every_write_is_sent_once_and_reports_uncertain_outcomes(mock: Moc
 async def test_misuse_fails_before_anything_is_sent(mock: Mock) -> None:
     sdk = mock.async_client()
     with pytest.raises(BachsConfigError):
-        await sdk.payouts.create({"destination": "pd_x", "amount": "1.00", "quote_id": "pqt_x"})  # type: ignore[arg-type]
+        await sdk.payouts.create(**{"destination": "pd_x", "amount": "1.00", "quote_id": "pqt_x"})  # type: ignore[arg-type]
     with pytest.raises(BachsConfigError):
-        await sdk.checkout_sessions.create({})  # type: ignore[arg-type]
+        await sdk.checkout_sessions.create(**{})  # type: ignore[arg-type]
     with pytest.raises(BachsConfigError):
         await sdk.payments.get("")
     with pytest.raises(BachsConfigError):
-        await sdk.products.create({"name": "P", "price": {"currency": "USD", "amount": "1"}}, idempotency_key=" k")
+        await sdk.products.create(**{"name": "P", "price": {"currency": "USD", "amount": "1"}}, idempotency_key=" k")
     with pytest.raises(BachsConfigError):
         AsyncBachs(api_key=KEY, environment="staging")  # type: ignore[arg-type]
     assert mock.calls == []
@@ -198,7 +198,7 @@ async def test_real_server_round_trip_preserves_body_and_key(server: Any) -> Non
     base_url, records = server(lambda _record: respond(product, 201))
     async with AsyncBachs(api_key=KEY, environment="sandbox", base_url=base_url) as sdk:
         payload: Any = {"name": "Free", "price": {"currency": "USD", "price_type": "free", "amount": None}}
-        await sdk.products.create(payload, idempotency_key="catalog-free")
+        await sdk.products.create(**payload, idempotency_key="catalog-free")
     assert records[0].body == '{"name":"Free","price":{"currency":"USD","price_type":"free","amount":null}}'
     assert records[0].headers["idempotency-key"] == "catalog-free"
 
@@ -256,7 +256,7 @@ async def test_deadline_is_exact_for_a_write_and_its_outcome_is_unknown(
     sdk = AsyncBachs(api_key=KEY, environment="sandbox", base_url=base_url, timeout=0.3)
     started = time.monotonic()
     with pytest.raises(BachsTimeoutError) as caught:
-        await sdk.payouts.create({"destination": "pd_x", "amount": "1.00"}, idempotency_key="k")
+        await sdk.payouts.create(**{"destination": "pd_x", "amount": "1.00"}, idempotency_key="k")
     assert time.monotonic() - started < 0.45
     assert caught.value.outcome_unknown is True and caught.value.response_status is None
     await sdk.aclose()

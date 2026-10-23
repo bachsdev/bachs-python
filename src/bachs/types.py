@@ -1,8 +1,9 @@
 """Request and response shapes. Fields keep Bachs snake_case and money stays in decimal strings.
 
-Requests are ``TypedDict`` shapes. Responses are :class:`bachs.Model` objects: ``response.field`` reads a
-field, a declared field the API left out reads as ``None``, fields this SDK version does not declare are
-still readable, and ``to_dict()`` returns the JSON exactly as received.
+Requests are keyword arguments on each method; the ``TypedDict`` shapes here are the nested values they
+take, such as a product's ``price`` or a checkout's ``product_cart`` items. Responses are :class:`bachs.Model`
+objects: ``response.field`` reads a field, a declared field the API left out reads as ``None``, fields this
+SDK version does not declare are still readable, and ``to_dict()`` returns the JSON exactly as received.
 """
 
 from __future__ import annotations
@@ -71,20 +72,6 @@ class SubscriptionCadence(TypedDict, total=False):
 
     interval: Literal["day", "week", "month", "year"]
     frequency: int
-
-
-class CreateProductRequest(TypedDict):
-    name: str
-    description: NotRequired[str | None]
-    price: PriceInput
-    metadata: NotRequired[dict[str, JsonValue] | None]
-    billing_cycle: NotRequired[SubscriptionCadence | None]
-
-
-class ProductListParams(TypedDict, total=False):
-    limit: int
-    cursor: str
-    include_archived: bool
 
 
 class CurrencyOption(Model):
@@ -198,30 +185,6 @@ class CheckoutCartItem(TypedDict):
     pricing: NotRequired[CartPriceOverride | None]
 
 
-class _CheckoutCommonInput(TypedDict, total=False):
-    customer: CustomerInput | None
-    customer_creation: Literal["always", "if_required"]
-    billing_currency: str | None
-    payment_method_types: list[PaymentMethodCorridor] | None
-    success_url: str
-    cancel_url: str | None
-    reference: str | None
-    metadata: dict[str, JsonValue] | None
-    expires_in_minutes: int
-
-
-class CartCheckoutSessionRequest(_CheckoutCommonInput):
-    product_cart: list[CheckoutCartItem]
-
-
-class PricingCheckoutSessionRequest(_CheckoutCommonInput):
-    pricing: CheckoutPricing
-
-
-# Supply exactly one of product_cart or pricing.
-CreateCheckoutSessionRequest = Union[CartCheckoutSessionRequest, PricingCheckoutSessionRequest]
-
-
 class CheckoutSessionCreated(Model):
     checkout_id: str
     checkout_url: str
@@ -235,6 +198,9 @@ class CheckoutIdentity(Model):
     id: str | None
     email: str | None
     name: str | None
+
+
+CustomerCreation = Literal["always", "if_required"]
 
 
 # Payments
@@ -306,12 +272,6 @@ class PaymentListItem(Model):
     completed_at: str | None
 
 
-class PaymentListParams(TypedDict, total=False):
-    limit: int
-    offset: int
-    status_filter: PaymentStatusFilter
-
-
 class PaymentPagination(Model):
     has_more: bool
     limit: int
@@ -371,21 +331,12 @@ class Subscription(Model):
     metadata: dict[str, Any] | None
 
 
-class SubscriptionListParams(TypedDict, total=False):
-    limit: int
-    offset: int
-    customer_id: str
-    status: Literal["trialing", "active", "past_due", "unpaid", "canceled"]
+SubscriptionStatusFilter = Literal["trialing", "active", "past_due", "unpaid", "canceled"]
 
 
 class SubscriptionList(Model):
     items: list[Subscription]
     pagination: Pagination
-
-
-class CancelSubscriptionRequest(TypedDict, total=False):
-    cancel_at_period_end: bool
-    reason: str | None
 
 
 class PortalSession(Model):
@@ -415,19 +366,9 @@ class Bank(Model):
     code: str
 
 
-class BankListParams(TypedDict, total=False):
-    country: str
-
-
 class BankList(Model):
     country: str
     banks: list[Bank]
-
-
-class ResolveBankAccountRequest(TypedDict):
-    account_number: str
-    bank_code: str
-    country: NotRequired[str | None]
 
 
 class ResolvedBankAccount(Model):
@@ -438,23 +379,6 @@ class ResolvedBankAccount(Model):
 
 
 # Payouts
-
-
-class CreatePayoutDestinationRequest(TypedDict):
-    currency: str
-    name: NotRequired[str | None]
-    label: NotRequired[str | None]
-    type: NotRequired[str | None]
-    destination_type: NotRequired[str | None]
-    account_number: NotRequired[str | None]
-    bank_code: NotRequired[str | None]
-    account_name: NotRequired[str | None]
-    bank_name: NotRequired[str | None]
-    phone_number: NotRequired[str | None]
-    mobile_provider: NotRequired[str | None]
-    wallet_address: NotRequired[str | None]
-    network: NotRequired[str | None]
-    metadata: NotRequired[dict[str, JsonValue] | None]
 
 
 class PayoutDestination(Model):
@@ -479,11 +403,7 @@ class PayoutDestination(Model):
     updated_at: str | None
 
 
-class PayoutDestinationListParams(TypedDict, total=False):
-    currency: str
-    status: Literal["pending_review", "approved", "rejected"]
-    limit: int
-    offset: int
+PayoutDestinationStatusFilter = Literal["pending_review", "approved", "rejected"]
 
 
 class PayoutDestinationList(Model):
@@ -491,13 +411,6 @@ class PayoutDestinationList(Model):
     total: int
     limit: int
     offset: int
-
-
-class CreatePayoutQuoteRequest(TypedDict):
-    from_currency: str
-    to_currency: str
-    amount: str
-    payout_method: NotRequired[str | None]
 
 
 class PayoutQuote(Model):
@@ -508,28 +421,6 @@ class PayoutQuote(Model):
     to_amount: str
     exchange_rate: str
     expires_at: str
-
-
-class _CreatePayoutCommon(TypedDict):
-    destination: str
-    reference: NotRequired[str | None]
-    metadata: NotRequired[dict[str, JsonValue] | None]
-
-
-class AmountPayoutRequest(_CreatePayoutCommon):
-    """Same-currency payout; ``amount`` is in the destination currency."""
-
-    amount: str
-
-
-class QuotedPayoutRequest(_CreatePayoutCommon):
-    """Cross-currency payout using a quote from ``payout_quotes.create``."""
-
-    quote_id: str
-
-
-# Supply exactly one of amount or quote_id.
-CreatePayoutRequest = Union[AmountPayoutRequest, QuotedPayoutRequest]
 
 
 class Payout(Model):
@@ -547,10 +438,7 @@ class Payout(Model):
     completed_at: str | None
 
 
-class PayoutListParams(TypedDict, total=False):
-    limit: int
-    offset: int
-    status_filter: Literal["requested", "pending", "processing", "approved", "rejected", "completed", "failed"]
+PayoutStatusFilter = Literal["requested", "pending", "processing", "approved", "rejected", "completed", "failed"]
 
 
 class PayoutList(Model):

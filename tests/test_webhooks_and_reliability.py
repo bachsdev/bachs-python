@@ -151,13 +151,13 @@ def test_46_only_signed_valid_json_envelopes_are_returned_and_misuse_is_rejected
 
 def write_operations(sdk: Bachs) -> list[Callable[[], Any]]:
     return [
-        lambda: sdk.checkout_sessions.create({"pricing": {"currency": "USD", "amount": "12.00"}}),
+        lambda: sdk.checkout_sessions.create(**{"pricing": {"currency": "USD", "amount": "12.00"}}),
         lambda: sdk.subscriptions.cancel("sub_synthetic"),
         lambda: sdk.customer_portal.create_session("cust_synthetic"),
-        lambda: sdk.banks.resolve_account({"account_number": "0000000000", "bank_code": "001"}),
-        lambda: sdk.payout_destinations.create({"currency": "NGN"}),
-        lambda: sdk.payout_quotes.create({"from_currency": "USD", "to_currency": "NGN", "amount": "1.00"}),
-        lambda: sdk.payouts.create({"destination": "pd_synthetic", "amount": "1.00"},
+        lambda: sdk.banks.resolve_account(**{"account_number": "0000000000", "bank_code": "001"}),
+        lambda: sdk.payout_destinations.create(**{"currency": "NGN"}),
+        lambda: sdk.payout_quotes.create(**{"from_currency": "USD", "to_currency": "NGN", "amount": "1.00"}),
+        lambda: sdk.payouts.create(**{"destination": "pd_synthetic", "amount": "1.00"},
                                    idempotency_key="synthetic-operation"),
     ]
 
@@ -192,12 +192,12 @@ def test_48_shared_retry_and_deadline_policy_reaches_every_resource(mock: Mock, 
     mock.calls.clear()
     mock.handler = never_answers
     with pytest.raises(BachsTimeoutError) as caught:
-        mock.client(timeout=0.02).payouts.create({"destination": "pd_synthetic", "amount": "1.00"})
+        mock.client(timeout=0.02).payouts.create(**{"destination": "pd_synthetic", "amount": "1.00"})
     assert caught.value.outcome_unknown is True and len(mock.calls) == 1
 
     mock.calls.clear()
     with pytest.raises(BachsTimeoutError):
-        mock.client().subscriptions.cancel("sub_synthetic", {}, timeout=0.02)
+        mock.client().subscriptions.cancel("sub_synthetic", **{}, timeout=0.02)
     assert len(mock.calls) == 1
 
 
@@ -206,14 +206,16 @@ def test_49_ambiguous_request_modes_fail_before_send_and_unsupported_success_is_
     sdk = mock.client()
     for payout_input in ({"destination": "pd_synthetic"},
                          {"destination": "pd_synthetic", "amount": "1.00", "quote_id": "pqt_synthetic"},
-                         {"destination": "pd_synthetic", "amount": 1}, {"destination": "pd_synthetic", "quote_id": ""},
-                         None):
+                         {"destination": "pd_synthetic", "amount": 1}, {"destination": "pd_synthetic", "quote_id": ""}):
         with pytest.raises(BachsConfigError):
-            sdk.payouts.create(payout_input)  # type: ignore[arg-type]
+            sdk.payouts.create(**payout_input)  # type: ignore[arg-type]
     for checkout_input in ({}, {"product_cart": [], "pricing": {"currency": "USD"}}, {"pricing": None},
                            {"product_cart": "prod_synthetic"}):
         with pytest.raises(BachsConfigError):
-            sdk.checkout_sessions.create(checkout_input)  # type: ignore[arg-type]
+            sdk.checkout_sessions.create(**checkout_input)  # type: ignore[arg-type]
+    # A field the method does not know is a TypeError from Python itself, never silently sent or dropped.
+    with pytest.raises(TypeError):
+        sdk.payouts.create(destination="pd_synthetic", amount="1.00", return_url="x")  # type: ignore[call-arg]
     for resource in (sdk.checkout_sessions, sdk.payments, sdk.subscriptions, sdk.payout_destinations, sdk.payouts):
         for bad_id in ("", "   ", ".", ".."):
             with pytest.raises(BachsConfigError):
@@ -224,15 +226,15 @@ def test_49_ambiguous_request_modes_fail_before_send_and_unsupported_success_is_
         with pytest.raises(BachsConfigError):
             dotted()
     with pytest.raises(BachsConfigError):
-        sdk.payout_destinations.create({"currency": "NGN", "metadata": {"bad": float("nan")}})
+        sdk.payout_destinations.create(**{"currency": "NGN", "metadata": {"bad": float("nan")}})
     with pytest.raises(BachsConfigError):
-        sdk.payout_destinations.create({"currency": "NGN", "metadata": {"bad": object()}})  # type: ignore[dict-item]
+        sdk.payout_destinations.create(currency="NGN", metadata={"bad": object()})  # type: ignore[dict-item]
     assert len(mock.calls) == 0
     with pytest.raises(BachsResponseError):
         sdk.payouts.get("pay_synthetic")
     assert len(mock.calls) == 1
     with pytest.raises(BachsResponseError) as caught:
-        sdk.payouts.create({"destination": "pd_synthetic", "amount": "1.00"})
+        sdk.payouts.create(**{"destination": "pd_synthetic", "amount": "1.00"})
     assert caught.value.outcome_unknown is True and len(mock.calls) == 2
 
 
