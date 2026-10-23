@@ -8,12 +8,8 @@ The first release under the shared SDK foundations. Code written for 1.x needs c
 - **Responses are typed objects.** `payout.status` and `page.items[0].name` instead of `payout["status"]`. A declared field the API left out reads as `None`; fields this SDK version does not declare are still readable; `.to_dict()` returns the JSON as received. Dictionary access on responses is removed.
 - **`environment` is optional.** It is detected from the key prefix (`sk_sandbox_` or `sk_live_`) and exposed as `bachs.environment`. If `environment` is given and contradicts the key, the client refuses to start with `BachsConfigError`. A key with an unrecognised prefix still needs `environment`.
 - **Logging** through the standard `bachs` logger. Warnings for an unrecognised key prefix and an exhausted retry budget; info for the environment in use; debug for each request. The key, bodies, portal URLs and webhook secrets are never logged.
+- **Error fields are named after what they hold.** `status_code` on `BachsApiError` and `BachsResponseError` is the HTTP status code (previously `status`); `error_code` stays the Bachs error code from the response body. `BachsNetworkError.response_status` is now `response_status_code`.
 - **`list_all`** on `products`, `payments`, `subscriptions`, `payout_destinations` and `payouts`: an iterator (async with `AsyncBachs`) over every item that fetches each page as it is reached. `list` is unchanged.
-- Identifiers of `.` or `..` are rejected before any request is sent (also released as 1.0.2).
-- The release workflow builds with pinned tool versions.
-
-## 1.0.2
-
 - Identifiers of `.` or `..` are rejected with `BachsConfigError` before any request is sent. Previously they passed through URL encoding unchanged and resolved as path navigation, so `payouts.get("..")` requested `/v1` and `subscriptions.cancel(".")` sent `DELETE /v1/subscriptions`, each carrying the API key. Only an application that passed untrusted input as an identifier was affected.
 - The release workflow builds with pinned tool versions.
 

@@ -65,7 +65,7 @@ def test_21_explicit_environment_credentials_and_redirect_safety(mock: Mock, ser
     base_url, records = server(lambda _record: (302, {"location": "/other"}, b"redirect"))
     with pytest.raises(BachsApiError) as caught:
         Bachs(api_key=KEY, environment="sandbox", base_url=base_url).products.get("prod_example")
-    assert caught.value.status == 302
+    assert caught.value.status_code == 302
     assert len(records) == 1, "Must not follow a redirect with the credential."
 
 
@@ -133,7 +133,7 @@ def test_25_http_errors_preserve_details_and_unusable_success_stays_distinct(moc
     with pytest.raises(BachsApiError) as caught:
         mock.client().products.get("prod_example")
     error = caught.value
-    assert (error.status, error.error_code, str(error)) == (400, "FUTURE_PROVIDER_CODE", body["detail"])
+    assert (error.status_code, error.error_code, str(error)) == (400, "FUTURE_PROVIDER_CODE", body["detail"])
     assert error.body == body and error.field_errors == body["errors"]
     assert (error.request_id, error.retry_after) == ("request-test", "5")
     assert len(mock.calls) == 1
@@ -152,7 +152,7 @@ def test_25_http_errors_preserve_details_and_unusable_success_stays_distinct(moc
     mock.responses = [httpx.Response(200, text="not json")]
     with pytest.raises(BachsResponseError) as response_error:
         mock.client().products.get("prod_example")
-    assert response_error.value.status == 200 and isinstance(response_error.value.__cause__, ValueError)
+    assert response_error.value.status_code == 200 and isinstance(response_error.value.__cause__, ValueError)
     assert len(mock.calls) == before + 1
 
     for unusable in [httpx.Response(200, text='{"id": NaN}'), json_response({"id": "prod_example", "name": "Bare"})]:
@@ -172,7 +172,7 @@ def test_26_connection_failure_preserves_cause_without_inventing_status(mock: Mo
         mock.client(max_retries=0).products.get("prod_example")
     error = caught.value
     assert not isinstance(error, BachsApiError) and error.__cause__ is cause
-    assert error.response_status is None and error.outcome_unknown is False
+    assert error.response_status_code is None and error.outcome_unknown is False
     assert len(mock.calls) == 1
 
 
@@ -185,7 +185,7 @@ def test_27_deadline_bounds_waiting_for_headers_and_reading_the_body(mock: Mock,
     with pytest.raises(BachsTimeoutError) as caught:
         mock.client(timeout=0.04).products.get("prod_example")
     assert mock.calls[0].timeout["read"] == pytest.approx(0.04), "Each attempt is bounded by the remaining budget."
-    assert caught.value.response_status is None
+    assert caught.value.response_status_code is None
 
     def slow_body() -> Iterator[bytes]:
         yield b'{"id": "prod_example",'
@@ -195,7 +195,7 @@ def test_27_deadline_bounds_waiting_for_headers_and_reading_the_body(mock: Mock,
     mock.handler = lambda _request: httpx.Response(200, content=slow_body())
     with pytest.raises(BachsTimeoutError) as caught:
         mock.client(timeout=1).products.get("prod_example", timeout=0.02)
-    assert caught.value.response_status == 200 and caught.value.outcome_unknown is False
+    assert caught.value.response_status_code == 200 and caught.value.outcome_unknown is False
 
 
 def test_29_reads_recover_exhaust_their_limit_and_respect_hints_and_deadline(mock: Mock, clock: FakeClock) -> None:
@@ -216,7 +216,9 @@ def test_29_reads_recover_exhaust_their_limit_and_respect_hints_and_deadline(moc
                       json_response({"detail": "still busy"}, 503)]
     with pytest.raises(BachsApiError) as exhausted:
         mock.client().products.get("prod_example")
-    assert exhausted.value.status == 503 and exhausted.value.outcome_unknown is False, "A failed read changes nothing."
+    assert exhausted.value.status_code == 503 and exhausted.value.outcome_unknown is False, (
+        "A failed read changes nothing."
+    )
     assert len(mock.calls) == 3 and clock.sleeps == [0.5, 1.0]
 
     for status in (400, 401, 403, 404, 409, 501):
@@ -224,7 +226,7 @@ def test_29_reads_recover_exhaust_their_limit_and_respect_hints_and_deadline(moc
         mock.responses = [json_response({"detail": "do not retry"}, status)]
         with pytest.raises(BachsApiError) as caught:
             mock.client().products.get("prod_example")
-        assert caught.value.status == status and len(mock.calls) == 1
+        assert caught.value.status_code == status and len(mock.calls) == 1
 
     mock.calls.clear()
     mock.responses = [json_response({"detail": "wait longer"}, 429, {"retry-after": "10"})]
@@ -249,7 +251,7 @@ def test_30_writes_send_once_preserve_keys_and_expose_uncertain_outcomes(
         Bachs(api_key=KEY, environment="sandbox", base_url=base_url, max_retries=5).products.create(
             **payload, idempotency_key="catalog-pro-plan"
         )
-    assert caught.value.status == 500 and caught.value.outcome_unknown is True
+    assert caught.value.status_code == 500 and caught.value.outcome_unknown is True
     assert len(records) == 1 and records[0].headers["idempotency-key"] == "catalog-pro-plan"
     assert json.loads(records[0].body) == payload
 

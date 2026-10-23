@@ -99,10 +99,10 @@ event = webhooks.construct_event(raw_body, request_headers, webhook_signing_secr
 
 | Error | Meaning |
 | --- | --- |
-| `BachsApiError` | Non-2xx HTTP response: `status`, `body`, `error_code`, `field_errors`, `request_id`, `retry_after` |
-| `BachsNetworkError` | No usable response; the original exception is `__cause__`; `response_status` if headers arrived |
+| `BachsApiError` | Non-2xx HTTP response: `status_code` (the HTTP status code), `error_code` (the Bachs error code from the body), `body`, `field_errors`, `request_id`, `retry_after` |
+| `BachsNetworkError` | No usable response; the original exception is `__cause__`; `response_status_code` if headers arrived |
 | `BachsTimeoutError` | Subclass of `BachsNetworkError`: the operation exceeded `timeout` |
-| `BachsResponseError` | Successful HTTP status with unusable JSON or an unsupported shape |
+| `BachsResponseError` | Successful HTTP status code with unusable JSON or an unsupported shape: `status_code`, `body`, `request_id` |
 | `BachsConfigError` | Local misconfiguration or request misuse, raised before sending |
 | `BachsWebhookError` | Webhook failed verification or is not a supported envelope |
 
@@ -110,7 +110,7 @@ Write 5xx responses, network failures and timeouts after sending, and unusable s
 
 ## Logging
 
-The SDK logs through the standard `logging` module under the name `bachs`, with no handler of its own, so your application controls it like any other library logger. Warnings cover an unrecognised key prefix and a retry budget used up; info logs the environment once per client; debug logs each request's method, path, status, duration, attempt number and request ID. The API key, request and response bodies, portal URLs and webhook secrets are never logged at any level.
+The SDK logs through the standard `logging` module under the name `bachs`, with no handler of its own, so your application controls it like any other library logger. Warnings cover an unrecognised key prefix and a retry budget used up; info logs the environment once per client; debug logs each request's method, path, status code, duration, attempt number and request ID. The API key, request and response bodies, portal URLs and webhook secrets are never logged at any level.
 
 ```python
 import logging

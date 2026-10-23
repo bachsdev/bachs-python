@@ -12,19 +12,22 @@ class BachsConfigError(BachsError):
 
 
 class BachsApiError(BachsError):
-    """Bachs answered with a non-2xx HTTP status."""
+    """Bachs answered with a non-2xx HTTP status code.
+
+    ``status_code`` is that number; ``error_code`` is the Bachs error code from the response body.
+    """
 
     def __init__(
         self,
-        status: int,
+        status_code: int,
         body: Any,
         request_id: str | None = None,
         retry_after: str | None = None,
         outcome_unknown: bool = False,
     ) -> None:
         detail = body.get("detail") if isinstance(body, dict) else None
-        super().__init__(detail if isinstance(detail, str) else f"Bachs returned HTTP {status}")
-        self.status = status
+        super().__init__(detail if isinstance(detail, str) else f"Bachs returned HTTP {status_code}")
+        self.status_code = status_code
         self.body = body
         error_code = body.get("error_code") if isinstance(body, dict) else None
         self.error_code: str | None = error_code if isinstance(error_code, str) else None
@@ -38,10 +41,10 @@ class BachsApiError(BachsError):
 class BachsNetworkError(BachsError):
     """No usable response was received. The original exception is ``__cause__``."""
 
-    def __init__(self, message: str, outcome_unknown: bool, response_status: int | None = None) -> None:
+    def __init__(self, message: str, outcome_unknown: bool, response_status_code: int | None = None) -> None:
         super().__init__(message)
         self.outcome_unknown = outcome_unknown
-        self.response_status = response_status
+        self.response_status_code = response_status_code
 
 
 class BachsTimeoutError(BachsNetworkError):
@@ -51,9 +54,9 @@ class BachsTimeoutError(BachsNetworkError):
 class BachsResponseError(BachsError):
     """A successful HTTP status with a body that is not usable JSON or not the supported shape."""
 
-    def __init__(self, status: int, body: Any, outcome_unknown: bool, request_id: str | None = None) -> None:
+    def __init__(self, status_code: int, body: Any, outcome_unknown: bool, request_id: str | None = None) -> None:
         super().__init__("Bachs returned a successful HTTP response with an unusable response body.")
-        self.status = status
+        self.status_code = status_code
         self.body = body
         self.outcome_unknown = outcome_unknown
         self.request_id = request_id

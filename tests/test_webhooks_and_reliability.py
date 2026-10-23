@@ -169,7 +169,7 @@ def test_47_all_v1_writes_send_once_on_temporary_http_errors_and_lost_responses(
             mock.responses = [json_response({"detail": "Synthetic failure", "error_code": "FUTURE_ERROR"}, status)]
             with pytest.raises(BachsApiError) as caught:
                 operation()
-            assert caught.value.status == status and caught.value.outcome_unknown is (status >= 500)
+            assert caught.value.status_code == status and caught.value.outcome_unknown is (status >= 500)
             assert len(mock.calls) == 1
         mock.calls.clear()
         mock.responses = [httpx.ReadError("Synthetic response lost")]

@@ -169,7 +169,7 @@ async def test_reads_retry_with_backoff_and_hints(mock: Mock, async_clock: FakeC
                       json_response({"detail": "still busy"}, 502)]
     with pytest.raises(BachsApiError) as caught:
         await mock.async_client().products.get("prod_example")
-    assert caught.value.status == 502 and caught.value.outcome_unknown is False
+    assert caught.value.status_code == 502 and caught.value.outcome_unknown is False
     assert len(mock.calls) == 3 and async_clock.sleeps == [0.5, 1.0]
 
     mock.calls.clear()
@@ -223,7 +223,7 @@ async def test_redirects_are_not_followed(server: Any) -> None:
     async with AsyncBachs(api_key=KEY, environment="sandbox", base_url=base_url) as sdk:
         with pytest.raises(BachsApiError) as caught:
             await sdk.products.get("prod_example")
-    assert caught.value.status == 302 and len(records) == 1
+    assert caught.value.status_code == 302 and len(records) == 1
 
 
 async def test_real_server_round_trip_preserves_body_and_key(server: Any) -> None:
@@ -277,7 +277,7 @@ async def test_deadline_is_exact_when_the_body_stalls(stalling_server: Callable[
         await sdk.products.get("prod_example")
     elapsed = time.monotonic() - started
     assert 0.5 <= elapsed < 0.65, elapsed
-    assert caught.value.response_status == 200 and caught.value.outcome_unknown is False
+    assert caught.value.response_status_code == 200 and caught.value.outcome_unknown is False
     await sdk.aclose()
 
 
@@ -290,7 +290,7 @@ async def test_deadline_is_exact_for_a_write_and_its_outcome_is_unknown(
     with pytest.raises(BachsTimeoutError) as caught:
         await sdk.payouts.create(**{"destination": "pd_x", "amount": "1.00"}, idempotency_key="k")
     assert time.monotonic() - started < 0.45
-    assert caught.value.outcome_unknown is True and caught.value.response_status is None
+    assert caught.value.outcome_unknown is True and caught.value.response_status_code is None
     await sdk.aclose()
 
 
