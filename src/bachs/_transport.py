@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import random
 import re
 import time
@@ -32,7 +33,16 @@ DEFAULT_MAX_RETRIES = 2
 MAX_TIMEOUT = 2147483.647
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 ENVIRONMENTS = {"sandbox": "https://sandbox-api.bachs.io", "production": "https://api.bachs.io"}
+KEY_PREFIXES = {"sk_sandbox_": "sandbox", "sk_live_": "production"}
 LOOPBACK = frozenset({"localhost", "127.0.0.1", "::1"})
+
+# Applications configure this like any library logger. Never given the API key, bodies, portal URLs or secrets.
+log = logging.getLogger("bachs")
+
+
+def key_environment(api_key: str) -> str | None:
+    """The environment a key belongs to, from its prefix, or None for a prefix the SDK does not know."""
+    return next((env for prefix, env in KEY_PREFIXES.items() if api_key.startswith(prefix)), None)
 
 # Indirection so tests can drive time deterministically.
 _monotonic = time.monotonic
@@ -117,6 +127,8 @@ class _Operation(Generic[T]):
     ) -> None:
         self.method = method
         self.url = url
+        self.path = urlsplit(url).path
+        self.attempt_started = 0.0
         self.params = params
         self.headers = headers
         self.content = content
@@ -133,6 +145,7 @@ class _Operation(Generic[T]):
 
     def build(self, client: httpx.Client | httpx.AsyncClient, remaining: float) -> httpx.Request:
         self.response_status = None
+        self.attempt_started = _monotonic()
         return client.build_request(
             self.method, self.url, params=self.params, headers=self.headers, content=self.content,
             timeout=httpx.Timeout(remaining),
@@ -162,6 +175,11 @@ class _Operation(Generic[T]):
     def outcome(self, response: httpx.Response, raw: bytes) -> T | _Retry:
         text = raw.decode("utf-8", errors="replace")
         request_id = response.headers.get("x-request-id")
+        log.debug(
+            "%s %s -> %s in %d ms (attempt %d%s)",
+            self.method, self.path, response.status_code, round((_monotonic() - self.attempt_started) * 1000),
+            self.attempt + 1, f", request {request_id}" if request_id else "",
+        )
         parse_error: Exception | None = None
         try:
             value: Any = json.loads(text, parse_constant=_reject_constant)
@@ -176,6 +194,11 @@ class _Operation(Generic[T]):
             delay = self.retry_delay(retry_after) if response.status_code in RETRY_STATUSES else None
             if delay is not None:
                 return _Retry(delay)
+            if not self.write and response.status_code in RETRY_STATUSES and self.attempt >= self.retries:
+                log.warning(
+                    "%s %s failed with %s after %d attempts; retry budget used up.",
+                    self.method, self.path, response.status_code, self.attempt + 1,
+                )
             raise error
         if parse_error is not None:
             raise BachsResponseError(response.status_code, text, self.write, request_id) from parse_error
@@ -190,15 +213,40 @@ class _Operation(Generic[T]):
 
 class _BaseTransport:
     def __init__(
-        self, *, api_key: str | None, environment: str, base_url: str | None, timeout: float, max_retries: int
+        self,
+        *,
+        api_key: str | None,
+        environment: str | None,
+        base_url: str | None,
+        timeout: float,
+        max_retries: int,
     ) -> None:
         if not isinstance(api_key, str) or api_key.strip() == "":
             raise BachsConfigError("A server API key is required.")
         if not _header_value(api_key):
             raise BachsConfigError("The API key cannot contain surrounding whitespace or line breaks.")
-        if environment not in ENVIRONMENTS:
-            raise BachsConfigError("Choose environment sandbox or production explicitly.")
-        base = base_url if base_url is not None else ENVIRONMENTS[environment]
+        if environment is not None and environment not in ENVIRONMENTS:
+            raise BachsConfigError("environment must be sandbox or production.")
+        detected = key_environment(api_key)
+        if detected is None and environment is None:
+            raise BachsConfigError(
+                "The API key prefix is not recognised (expected sk_sandbox_ or sk_live_); pass environment explicitly."
+            )
+        if detected is not None and environment is not None and detected != environment:
+            # A sandbox key in production code (or the reverse) is never intended; stop before any request is sent.
+            prefix = next(p for p, env in KEY_PREFIXES.items() if env == detected)
+            raise BachsConfigError(
+                f'environment is "{environment}" but the API key is a {detected} key ({prefix}). '
+                f'Use a {environment} key or set environment to "{detected}".'
+            )
+        resolved = detected if detected is not None else environment
+        assert resolved is not None
+        if detected is None:
+            log.warning('the API key prefix is not recognised; using environment "%s" as given.', resolved)
+        else:
+            log.info("using %s (%s key).", resolved, next(p for p, env in KEY_PREFIXES.items() if env == detected))
+        self.environment: str = resolved
+        base = base_url if base_url is not None else ENVIRONMENTS[resolved]
         try:
             parts = urlsplit(base) if isinstance(base, str) else None
             hostname = parts.hostname if parts else None

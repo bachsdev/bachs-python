@@ -4,7 +4,7 @@ from werkzeug.datastructures import Headers
 
 from bachs import Bachs, webhooks
 
-bachs = Bachs(api_key="synthetic", environment="sandbox")
+bachs = Bachs(api_key="sk_sandbox_synthetic")
 bachs.checkout_sessions.create(
     product_cart=[{"product_id": "prod_synthetic"}],
     customer={"email": "synthetic@example.com", "name": "Synthetic"},

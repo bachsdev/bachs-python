@@ -94,8 +94,8 @@ def async_clock(monkeypatch: pytest.MonkeyPatch) -> FakeClock:
 
 
 def test_every_method_has_an_async_twin_with_the_same_signature() -> None:
-    sync_client = Bachs(api_key=KEY, environment="sandbox")
-    async_client = AsyncBachs(api_key=KEY, environment="sandbox")
+    sync_client = Bachs(api_key=KEY)
+    async_client = AsyncBachs(api_key=KEY)
     names = {name for name, _, _ in OPERATIONS}
     for resource in ("products", "checkout_sessions", "payments", "subscriptions", "customer_portal", "balances",
                      "banks", "payout_destinations", "payout_quotes", "payouts"):

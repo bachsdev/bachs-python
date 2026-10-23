@@ -35,24 +35,25 @@ def product(**extra: Any) -> dict[str, Any]:
 
 @pytest.mark.parametrize("options", [
     {"api_key": None}, {"api_key": ""}, {"api_key": "key\r\nInjected: value"}, {"api_key": " key"},
-    {"environment": None}, {"environment": "staging"},
+    {"environment": "staging"}, {"environment": "production"}, {"api_key": "unknown-prefix", "environment": None},
     {"timeout": 0}, {"timeout": 2147483.648}, {"timeout": True}, {"max_retries": -1}, {"max_retries": 1.5},
     {"base_url": "http://example.com"}, {"base_url": "https://user:password@example.com"},
     {"base_url": "https://example.com/?q=1"}, {"base_url": "https://example.com/#f"}, {"base_url": "example.com"},
 ])
 def test_21_rejects_invalid_configuration(options: dict[str, Any]) -> None:
-    settings: dict[str, Any] = {"api_key": KEY, "environment": "sandbox", **options}
+    settings: dict[str, Any] = {"api_key": KEY, **options}
     with pytest.raises(BachsConfigError):
         Bachs(**settings)
 
 
 def test_21_explicit_environment_credentials_and_redirect_safety(mock: Mock, server: Any) -> None:
-    with pytest.raises(TypeError):
-        Bachs(api_key=KEY)  # type: ignore[call-arg]
     mock.responses = [product(), product()]
     sandbox = mock.client()
+    assert sandbox.environment == "sandbox", "Detected from the sk_sandbox_ prefix."
     sandbox.products.get("prod_example")
-    mock.client(environment="production").products.get("prod_example")
+    live = mock.client(api_key="sk_live_synthetic")
+    assert live.environment == "production"
+    live.products.get("prod_example")
     assert str(mock.calls[0].url) == "https://sandbox-api.bachs.io/v1/products/prod_example"
     assert str(mock.calls[1].url) == "https://api.bachs.io/v1/products/prod_example"
     assert mock.calls[0].headers["authorization"] == "Bearer " + KEY

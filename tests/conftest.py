@@ -13,7 +13,7 @@ import pytest
 import bachs._transport as transport_module
 from bachs import AsyncBachs, Bachs
 
-KEY = "synthetic-key-only-for-local-tests"
+KEY = "sk_sandbox_synthetic_key_only_for_local_tests"
 
 
 class FakeClock:
@@ -80,12 +80,12 @@ class Mock:
         return json_response(nxt)
 
     def client(self, **options: Any) -> Bachs:
-        settings: dict[str, Any] = {"api_key": KEY, "environment": "sandbox"}
+        settings: dict[str, Any] = {"api_key": KEY}
         settings.update(options)
         return Bachs(**settings, http_client=httpx.Client(transport=httpx.MockTransport(self)))
 
     def async_client(self, **options: Any) -> AsyncBachs:
-        settings: dict[str, Any] = {"api_key": KEY, "environment": "sandbox"}
+        settings: dict[str, Any] = {"api_key": KEY}
         settings.update(options)
         return AsyncBachs(**settings, http_client=httpx.AsyncClient(transport=httpx.MockTransport(self)))
 

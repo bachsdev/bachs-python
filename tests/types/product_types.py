@@ -19,7 +19,9 @@ priced_free: PriceInput = {"currency": "USD", "price_type": "free", "amount": "1
 custom_amount: PriceInput = {"currency": "USD", "price_type": "custom", "amount": "12.00"}  # type: ignore[assignment, misc]
 # A fixed currency option also requires its decimal-string amount.
 missing_option: PriceInput = {"currency": "USD", "amount": "12.00", "currency_options": [{"currency": "NGN"}]}  # type: ignore[typeddict-item]
-bachs = Bachs(api_key="synthetic-only", environment="sandbox")
+bachs = Bachs(api_key="sk_sandbox_synthetic")
+# environment is optional once the key prefix says which one.
+Bachs(api_key="sk_live_synthetic", environment="production")
 bachs.products.create(name="Pro Plan", price=fixed, idempotency_key="catalog-pro-plan")
 bachs.products.create(name="Free", price=free, description=None, billing_cycle={"interval": "month", "frequency": 1})
 bachs.products.list(limit=50, cursor="c2", include_archived=True)
@@ -31,4 +33,4 @@ bachs.products.create(name="Pro Plan", price={"currency": "USD", "amount": 12}) 
 bachs.products.create(name="Pro Plan", price=fixed, max_retries=2)  # type: ignore[call-arg]
 bachs.products.get("prod_example", max_retries=0)
 # Environment selection is explicit.
-Bachs(api_key="synthetic-only", environment="staging")  # type: ignore[arg-type]
+Bachs(api_key="sk_live_synthetic", environment="staging")  # type: ignore[arg-type]

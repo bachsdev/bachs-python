@@ -35,7 +35,9 @@ class Bachs:
     """Server-side Bachs client. Constructing it sends no request.
 
     :param api_key: Secret server API key. Keep it out of frontend code.
-    :param environment: ``"sandbox"`` or ``"production"``; there is no default.
+    :param environment: ``"sandbox"`` or ``"production"``. Detected from the key prefix (``sk_sandbox_`` or
+        ``sk_live_``) when omitted; if given and the key belongs to the other environment, the client refuses
+        to start. ``bachs.environment`` says which one is in use.
     :param base_url: Overrides the host, useful for a proxy or a local test server.
     :param timeout: Total seconds per operation, including retries, waits and reading the response.
     :param max_retries: Additional attempts for reads only. Writes are always sent once.
@@ -48,7 +50,7 @@ class Bachs:
         self,
         *,
         api_key: str | None,
-        environment: Literal["sandbox", "production"],
+        environment: Literal["sandbox", "production"] | None = None,
         base_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         max_retries: int = DEFAULT_MAX_RETRIES,
@@ -62,6 +64,7 @@ class Bachs:
             max_retries=max_retries,
             http_client=http_client,
         )
+        self.environment: str = self._transport.environment
         self.products = Products(self._transport)
         self.checkout_sessions = CheckoutSessions(self._transport)
         self.payments = Payments(self._transport)
@@ -104,7 +107,7 @@ class AsyncBachs:
         self,
         *,
         api_key: str | None,
-        environment: Literal["sandbox", "production"],
+        environment: Literal["sandbox", "production"] | None = None,
         base_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         max_retries: int = DEFAULT_MAX_RETRIES,
@@ -118,6 +121,7 @@ class AsyncBachs:
             max_retries=max_retries,
             http_client=http_client,
         )
+        self.environment: str = self._transport.environment
         self.products = AsyncProducts(self._transport)
         self.checkout_sessions = AsyncCheckoutSessions(self._transport)
         self.payments = AsyncPayments(self._transport)

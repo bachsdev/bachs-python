@@ -8,7 +8,7 @@ from bachs.types import Payout, ProductList
 
 
 async def usage() -> None:
-    async with AsyncBachs(api_key="synthetic", environment="sandbox", http_client=httpx.AsyncClient()) as bachs:
+    async with AsyncBachs(api_key="sk_sandbox_synthetic", http_client=httpx.AsyncClient()) as bachs:
         payout = await bachs.payouts.create(destination="pd_x", amount="1.00")
         assert_type(payout, Payout)
         assert_type(payout.status, str)
@@ -27,4 +27,4 @@ async def usage() -> None:
 
 
 # The async client takes an httpx.AsyncClient, not a sync one.
-AsyncBachs(api_key="synthetic", environment="sandbox", http_client=httpx.Client())  # type: ignore[arg-type]
+AsyncBachs(api_key="sk_sandbox_synthetic", http_client=httpx.Client())  # type: ignore[arg-type]

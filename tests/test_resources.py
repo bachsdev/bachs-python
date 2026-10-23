@@ -26,7 +26,7 @@ payout = {"id": "pay_synthetic_payout", "status": "pending", "amount": "1400.00"
 
 def harness(mock: Mock, responses: list[Any]) -> Any:
     mock.responses = responses
-    return mock.client(api_key="synthetic-key", max_retries=0)
+    return mock.client(api_key="sk_sandbox_synthetic", max_retries=0)
 
 
 def test_31_recurring_product_checkout_preserves_inputs_and_operation_key(mock: Mock) -> None:
@@ -38,7 +38,7 @@ def test_31_recurring_product_checkout_preserves_inputs_and_operation_key(mock: 
     call = mock.calls[0]
     assert (call.method, call.url.path, call.body) == ("POST", "/v1/checkout-sessions", payload)
     assert "success_url" not in call.body
-    assert call.headers["authorization"] == "Bearer synthetic-key"
+    assert call.headers["authorization"] == "Bearer sk_sandbox_synthetic"
     assert call.headers["idempotency-key"] == "synthetic-checkout-001"
     assert result.future_field is True and result.checkout_id == created["checkout_id"]  # type: ignore[attr-defined]
 

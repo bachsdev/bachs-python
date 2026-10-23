@@ -241,13 +241,13 @@ def test_49_ambiguous_request_modes_fail_before_send_and_unsupported_success_is_
 def test_50_package_exposes_the_errors_helpers_and_only_agreed_v1_resources() -> None:
     assert all(hasattr(bachs, name) for name in bachs.__all__)
     assert issubclass(BachsWebhookError, bachs.BachsError) and issubclass(BachsTimeoutError, BachsNetworkError)
-    sdk = Bachs(api_key="synthetic-key", environment="sandbox")
+    sdk = Bachs(api_key="sk_sandbox_synthetic")
     assert sdk.webhooks is webhooks
     for resource in ("products", "checkout_sessions", "payments", "subscriptions", "customer_portal", "balances",
                      "banks", "payout_destinations", "payout_quotes", "payouts"):
         assert getattr(sdk, resource)
     assert not hasattr(sdk, "connect") and not hasattr(sdk.payments, "create")
     assert not hasattr(sdk.subscriptions, "create")
-    assert "synthetic-key" not in repr(sdk)
-    with Bachs(api_key="synthetic-key", environment="sandbox") as scoped:
+    assert "sk_sandbox_synthetic" not in repr(sdk)
+    with Bachs(api_key="sk_sandbox_synthetic") as scoped:
         assert scoped.products
