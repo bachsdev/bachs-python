@@ -1,6 +1,6 @@
 # Bachs Python SDK
 
-A port of the [Bachs TypeScript SDK](https://github.com/bachsdev/bachs-node) `1.0.0` with the same resources, request semantics and webhook verification.
+The official Bachs server-side Python SDK. It covers the same resources, request semantics and webhook verification as the [TypeScript SDK](https://github.com/bachsdev/bachs-node), following the shared SDK foundations.
 
 ```sh
 pip install bachs
@@ -12,32 +12,28 @@ Official server-side Python SDK for Bachs, with a sync client (`Bachs`) and an a
 import os
 from bachs import Bachs
 
-bachs = Bachs(api_key=os.environ["BACHS_API_KEY"], environment="sandbox")
+bachs = Bachs(api_key=os.environ["BACHS_API_KEY"])
 
 product = bachs.products.create(
-    {
-        "name": "Pro Plan",
-        "price": {"currency": "USD", "amount": "12.00"},
-        "billing_cycle": {"interval": "month", "frequency": 1},
-    },
+    name="Pro Plan",
+    price={"currency": "USD", "amount": "12.00"},
+    billing_cycle={"interval": "month", "frequency": 1},
     idempotency_key="unique-operation-key-retained-by-your-app",
 )
 
 checkout = bachs.checkout_sessions.create(
-    {
-        "product_cart": [{"product_id": product["id"]}],
-        "customer": {"email": "synthetic@example.com", "name": "Synthetic Customer"},
-        "success_url": "https://your-public-app.example/success",
-    },
+    product_cart=[{"product_id": product.id}],
+    customer={"email": "synthetic@example.com", "name": "Synthetic Customer"},
+    success_url="https://your-public-app.example/success",
     idempotency_key="another-unique-operation-key",
 )
 
-# Redirect the customer to checkout["checkout_url"] in your application.
+# Redirect the customer to checkout.checkout_url in your application.
 # A redirect alone does not prove payment or establish access rights.
-session = bachs.checkout_sessions.get(checkout["checkout_id"])
+session = bachs.checkout_sessions.get(checkout.checkout_id)
 ```
 
-Configure the SDK on your backend and keep the secret key out of frontend code. Constructing a client sends no request. `environment` is required; `base_url` overrides the endpoint for a proxy or a local test server. Pass `http_client=httpx.Client(...)` to configure proxies or transports; the caller closes a client it supplies. Use `with Bachs(...) as bachs:` or `bachs.close()` to release connections the SDK opened.
+Configure the SDK on your backend and keep the secret key out of frontend code. Constructing a client sends no request. The environment comes from the key prefix: `sk_sandbox_` keys use the sandbox and `sk_live_` keys use production, and `bachs.environment` says which. Passing `environment` is optional; if it contradicts the key, the client refuses to start with `BachsConfigError` rather than send a sandbox key to production or the reverse. A key with an unrecognised prefix needs `environment` set explicitly. `base_url` overrides the endpoint for a proxy or a local test server. Pass `http_client=httpx.Client(...)` to configure proxies or transports; the caller closes a client it supplies. Use `with Bachs(...) as bachs:` or `bachs.close()` to release connections the SDK opened.
 
 ## Async
 
@@ -46,7 +42,7 @@ Configure the SDK on your backend and keep the secret key out of frontend code. 
 ```python
 from bachs import AsyncBachs
 
-async with AsyncBachs(api_key=os.environ["BACHS_API_KEY"], environment="sandbox") as bachs:
+async with AsyncBachs(api_key=os.environ["BACHS_API_KEY"]) as bachs:
     payout = await bachs.payouts.get("po_123")
 ```
 
@@ -56,21 +52,31 @@ Create one client at application startup and reuse it, so connections are pooled
 
 | Resource | Methods |
 | --- | --- |
-| `products` | `create`, `get`, `list` |
+| `products` | `create`, `get`, `list`, `list_all` |
 | `checkout_sessions` | `create`, `get` |
-| `payments` | `get`, `list` |
-| `subscriptions` | `get`, `list`, `cancel` |
+| `payments` | `get`, `list`, `list_all` |
+| `subscriptions` | `get`, `list`, `list_all`, `cancel` |
 | `customer_portal` | `create_session(customer_id)` |
 | `balances` | `get` |
 | `banks` | `list`, `resolve_account` |
-| `payout_destinations` | `create`, `get`, `list` |
+| `payout_destinations` | `create`, `get`, `list`, `list_all` |
 | `payout_quotes` | `create` |
-| `payouts` | `create`, `get`, `list` |
+| `payouts` | `create`, `get`, `list`, `list_all` |
 | `webhooks` | `construct_event` |
 
-Creation takes `(params, *, idempotency_key=None, timeout=None)`, retrieval takes `(id, *, timeout=None, max_retries=None)` and listing takes `(params=None, *, timeout=None, max_retries=None)`. Writes do not accept `max_retries`.
+Request fields are keyword arguments, named as in the API: `bachs.payouts.create(destination="pd_123", amount="50.00", idempotency_key="...")`. Retrieval takes the ID first: `bachs.payouts.get("po_123")`. Every method also takes `timeout`; reads take `max_retries` and writes take `idempotency_key`. Leaving an optional field out sends nothing for it, while passing `None` sends `null`, as the API distinguishes the two. Nested values such as a product's `price` or a checkout's `product_cart` items are dictionaries, with their shapes in `bachs.types`. A field the method does not know is a `TypeError`.
 
-Requests and responses are plain dictionaries typed with `TypedDict` (see `bachs.types`), so fields stay in Bachs snake_case, money stays in decimal strings, and the difference between an omitted key and `None` reaches the API unchanged. Responses are validated against the fields their type promises and returned as received, including fields this SDK version does not know about.
+Responses are typed objects: `payout.status`, `page.items[0].price.amount`. Fields stay in Bachs snake_case and money stays in decimal strings. A declared field the API left out reads as `None`, fields this SDK version does not declare are still readable, and `.to_dict()` returns the JSON exactly as received. Each response is validated against the fields its type promises before it is returned.
+
+`list` returns one page. `list_all` on `products`, `payments`, `subscriptions`, `payout_destinations` and `payouts` iterates over every item, fetching each page only when it is reached and following cursor or offset paging as each resource needs:
+
+```python
+for payout in bachs.payouts.list_all(status_filter="completed"):
+    print(payout.id, payout.amount)
+
+async for payout in async_bachs.payouts.list_all():  # with AsyncBachs
+    ...
+```
 
 The product, subscription, payout and limitation notes in the [TypeScript SDK README](https://github.com/bachsdev/bachs-node#readme) apply unchanged.
 
@@ -80,7 +86,7 @@ The product, subscription, payout and limitation notes in the [TypeScript SDK RE
 from bachs import webhooks
 
 event = webhooks.construct_event(raw_body, request_headers, webhook_signing_secret)
-# Persist/check event["id"] atomically in your application before applying effects.
+# Persist/check event.id atomically in your application before applying effects.
 ```
 
 `raw_body` is the request body as `bytes` or `str` before JSON parsing, for example `await request.body()` in Starlette/FastAPI, `request.get_data()` in Flask or `request.body` in Django. `request_headers` is a `dict` or your framework's `request.headers` (Starlette/FastAPI, Flask and Django all work); repeated signature headers are rejected. `tolerance` defaults to 300 seconds. Verification follows the TypeScript SDK: `X-Bachs-Signature-V2` is preferred, any matching `v1` digest is accepted during rotation, and malformed V2 does not fall back to the legacy headers.
@@ -102,6 +108,15 @@ event = webhooks.construct_event(raw_body, request_headers, webhook_signing_secr
 
 Write 5xx responses, network failures and timeouts after sending, and unusable successful write responses set `outcome_unknown = True`. Do not treat such an error as proof that no operation exists; reconcile before creating a new operation key.
 
+## Logging
+
+The SDK logs through the standard `logging` module under the name `bachs`, with no handler of its own, so your application controls it like any other library logger. Warnings cover an unrecognised key prefix and a retry budget used up; info logs the environment once per client; debug logs each request's method, path, status, duration, attempt number and request ID. The API key, request and response bodies, portal URLs and webhook secrets are never logged at any level.
+
+```python
+import logging
+logging.getLogger("bachs").setLevel(logging.INFO)
+```
+
 ## How the timeout is enforced
 
 `timeout` is a budget for the whole operation, not for each network step. Both clients check it before each attempt, never start a retry whose wait does not fit, and cap every network wait at the time remaining.
@@ -113,7 +128,8 @@ An overrun needs a server or network path that makes progress and then stalls: a
 
 ## Differences from the TypeScript SDK
 
-- Python naming: `checkout_sessions`, `customer_portal.create_session`, `banks.resolve_account`, `idempotency_key`, `max_retries`, `base_url`, `webhooks.construct_event(..., tolerance=...)`.
+- Python naming: `checkout_sessions`, `customer_portal.create_session`, `banks.resolve_account`, `list_all`, `idempotency_key`, `max_retries`, `base_url`, `webhooks.construct_event(..., tolerance=...)`.
+- Request fields are keyword arguments in Python and one object in TypeScript. Responses are typed objects with attribute access in both.
 - `timeout` is in seconds (`timeoutMs` in TypeScript).
 - There is no `signal` option and no `BachsAbortError`. With `AsyncBachs`, cancel the task instead; the sync client cannot be cancelled from outside.
 - The sync client's timeout can overrun when a response stalls mid-body (see above). The TypeScript SDK and `AsyncBachs` stop at the exact deadline.
