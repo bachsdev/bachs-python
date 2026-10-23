@@ -1,7 +1,8 @@
 """Request and response shapes. Fields keep Bachs snake_case and money stays in decimal strings.
 
-Responses are plain ``dict`` objects at runtime. The SDK validates the fields promised below and
-returns the actual object, so additional fields Bachs adds later are retained.
+Requests are ``TypedDict`` shapes. Responses are :class:`bachs.Model` objects: ``response.field`` reads a
+field, a declared field the API left out reads as ``None``, fields this SDK version does not declare are
+still readable, and ``to_dict()`` returns the JSON exactly as received.
 """
 
 from __future__ import annotations
@@ -9,6 +10,8 @@ from __future__ import annotations
 from typing import Any, Literal, TypeAlias, Union
 
 from typing_extensions import NotRequired, TypedDict
+
+from ._models import Model
 
 JsonValue: TypeAlias = Union[None, bool, int, float, str, list["JsonValue"], dict[str, "JsonValue"]]
 
@@ -84,64 +87,69 @@ class ProductListParams(TypedDict, total=False):
     include_archived: bool
 
 
-class CurrencyOptionResponse(TypedDict):
+class CurrencyOption(Model):
     currency: str
-    amount: NotRequired[str | None]
-    preset_amount: NotRequired[str | None]
-    minimum_amount: NotRequired[str | None]
-    maximum_amount: NotRequired[str | None]
+    amount: str | None
+    preset_amount: str | None
+    minimum_amount: str | None
+    maximum_amount: str | None
 
 
-class PriceResponse(TypedDict):
+class Price(Model):
     currency: str
     price_type: PriceType
     amount: str
-    preset_amount: NotRequired[str | None]
-    minimum_amount: NotRequired[str | None]
-    maximum_amount: NotRequired[str | None]
-    currency_options: NotRequired[list[CurrencyOptionResponse]]
-
-
-class ProductCurrencyPrice(TypedDict, total=False):
-    currency: str
-    amount: str
+    preset_amount: str | None
     minimum_amount: str | None
     maximum_amount: str | None
-    is_default: bool
+    currency_options: list[CurrencyOption] | None
 
 
-class ProductResponse(TypedDict):
+class ProductCurrencyPrice(Model):
+    currency: str | None
+    amount: str | None
+    minimum_amount: str | None
+    maximum_amount: str | None
+    is_default: bool | None
+
+
+class BillingCycle(Model):
+    interval: Literal["day", "week", "month", "year"] | None
+    frequency: int | None
+
+
+class Product(Model):
     id: str
     name: str
-    price: PriceResponse
-    organization_id: NotRequired[str]
-    description: NotRequired[str | None]
-    status: NotRequired[str]
-    metadata: NotRequired[dict[str, Any] | None]
-    media: NotRequired[list[dict[str, Any]]]
-    actor_id: NotRequired[str]
-    created_at: NotRequired[str]
-    updated_at: NotRequired[str]
-    archived_at: NotRequired[str | None]
-    billing_cycle: NotRequired[SubscriptionCadence | None]
-    prices: NotRequired[list[ProductCurrencyPrice]]
-    total_payments: NotRequired[float]
-    total_amount: NotRequired[str]
+    price: Price
+    organization_id: str | None
+    description: str | None
+    status: str | None
+    metadata: dict[str, Any] | None
+    media: list[dict[str, Any]] | None
+    actor_id: str | None
+    created_at: str | None
+    updated_at: str | None
+    archived_at: str | None
+    billing_cycle: BillingCycle | None
+    prices: list[ProductCurrencyPrice] | None
+    total_payments: float | None
+    total_amount: str | None
 
 
-class PaginationResponse(TypedDict, total=False):
+class Pagination(Model):
     next_cursor: str | None
     prev_cursor: str | None
-    has_more: bool
-    limit: int
-    offset: int
-    returned: int
-    total: int
+    has_more: bool | None
+    limit: int | None
+    offset: int | None
+    returned: int | None
+    total: int | None
 
 
-class ProductListResponse(TypedDict):
-    items: list[ProductResponse]
-    pagination: PaginationResponse
+class ProductList(Model):
+    items: list[Product]
+    pagination: Pagination
 
 
 # Checkout sessions
@@ -214,7 +222,7 @@ class PricingCheckoutSessionRequest(_CheckoutCommonInput):
 CreateCheckoutSessionRequest = Union[CartCheckoutSessionRequest, PricingCheckoutSessionRequest]
 
 
-class CheckoutSessionCreated(TypedDict):
+class CheckoutSessionCreated(Model):
     checkout_id: str
     checkout_url: str
     status: str
@@ -223,7 +231,7 @@ class CheckoutSessionCreated(TypedDict):
     reference: str | None
 
 
-class CheckoutIdentity(TypedDict, total=False):
+class CheckoutIdentity(Model):
     id: str | None
     email: str | None
     name: str | None
@@ -237,65 +245,65 @@ PaymentStatusFilter = Literal[
 ]
 
 
-class PaymentResponse(TypedDict):
+class Payment(Model):
     payment_id: str
     status: str
     amount: str
     currency: str
     created_at: str
     updated_at: str
-    reference: NotRequired[str | None]
-    checkout_id: NotRequired[str | None]
-    subscription_id: NotRequired[str | None]
-    billing_reason: NotRequired[str]
-    fee_usd: NotRequired[str | None]
-    amount_paid: NotRequired[str | None]
-    amount_remaining: NotRequired[str | None]
-    payment_method: NotRequired[str | None]
-    completed_at: NotRequired[str | None]
-    is_refundable: NotRequired[bool | None]
-    meta: NotRequired[dict[str, Any] | None]
+    reference: str | None
+    checkout_id: str | None
+    subscription_id: str | None
+    billing_reason: str | None
+    fee_usd: str | None
+    amount_paid: str | None
+    amount_remaining: str | None
+    payment_method: str | None
+    completed_at: str | None
+    is_refundable: bool | None
+    meta: dict[str, Any] | None
 
 
-class CheckoutSessionResponse(TypedDict):
+class CheckoutSession(Model):
     checkout_id: str
     status: str
-    amount: NotRequired[str]
-    currency: NotRequired[str]
-    payment_status: NotRequired[str | None]
-    source_type: NotRequired[str | None]
-    reference: NotRequired[str | None]
-    charge: NotRequired[PaymentResponse | None]
-    payment_method: NotRequired[str | None]
-    customer: NotRequired[CheckoutIdentity | None]
-    customer_details: NotRequired[CheckoutIdentity | None]
-    success_url: NotRequired[str | None]
-    cancel_url: NotRequired[str | None]
-    billing_currency: NotRequired[str | None]
-    session_mode: NotRequired[str | None]
-    metadata: NotRequired[dict[str, Any] | None]
-    created_at: NotRequired[str]
-    expires_at: NotRequired[str | None]
-    completed_at: NotRequired[str | None]
-    updated_at: NotRequired[str]
+    amount: str | None
+    currency: str | None
+    payment_status: str | None
+    source_type: str | None
+    reference: str | None
+    charge: Payment | None
+    payment_method: str | None
+    customer: CheckoutIdentity | None
+    customer_details: CheckoutIdentity | None
+    success_url: str | None
+    cancel_url: str | None
+    billing_currency: str | None
+    session_mode: str | None
+    metadata: dict[str, Any] | None
+    created_at: str | None
+    expires_at: str | None
+    completed_at: str | None
+    updated_at: str | None
 
 
-class PaymentListItem(TypedDict):
-    id: NotRequired[str | None]
+class PaymentListItem(Model):
+    id: str | None
     status: str
     amount: str
     currency: str
     customer_name: str
     customer_email: str
-    reference: NotRequired[str | None]
-    amount_paid: NotRequired[str | None]
-    amount_remaining: NotRequired[str | None]
-    settlement_amount: NotRequired[str | None]
-    settlement_currency: NotRequired[str | None]
-    fee: NotRequired[str | None]
-    vat: NotRequired[str | None]
-    transaction_date: NotRequired[str | None]
-    completed_at: NotRequired[str | None]
+    reference: str | None
+    amount_paid: str | None
+    amount_remaining: str | None
+    settlement_amount: str | None
+    settlement_currency: str | None
+    fee: str | None
+    vat: str | None
+    transaction_date: str | None
+    completed_at: str | None
 
 
 class PaymentListParams(TypedDict, total=False):
@@ -304,17 +312,17 @@ class PaymentListParams(TypedDict, total=False):
     status_filter: PaymentStatusFilter
 
 
-class PaymentPagination(TypedDict):
+class PaymentPagination(Model):
     has_more: bool
     limit: int
     offset: int
     returned: int
     total: int
-    next_cursor: NotRequired[str | None]
-    prev_cursor: NotRequired[str | None]
+    next_cursor: str | None
+    prev_cursor: str | None
 
 
-class PaymentListResponse(TypedDict):
+class PaymentList(Model):
     items: list[PaymentListItem]
     pagination: PaymentPagination
 
@@ -322,45 +330,45 @@ class PaymentListResponse(TypedDict):
 # Subscriptions and customer portal
 
 
-class SubscriptionCustomer(TypedDict, total=False):
-    customer_id: str
+class SubscriptionCustomer(Model):
+    customer_id: str | None
     email: str | None
     name: str | None
     phone_number: str | None
 
 
-class SubscriptionItem(TypedDict, total=False):
-    id: str
-    status: str
-    quantity: float
-    recurring: bool
-    price_type: str
-    unit_amount: str
-    currency: str
+class SubscriptionItem(Model):
+    id: str | None
+    status: str | None
+    quantity: float | None
+    recurring: bool | None
+    price_type: str | None
+    unit_amount: str | None
+    currency: str | None
     previously_billed_at: str | None
     next_billed_at: str | None
 
 
-class SubscriptionResponse(TypedDict):
+class Subscription(Model):
     id: str
     status: str
-    customer: NotRequired[SubscriptionCustomer]
-    payment_method_id: NotRequired[str | None]
-    collection_method: NotRequired[str]
-    currency: NotRequired[str]
-    amount: NotRequired[str]
-    billing_cycle: NotRequired[SubscriptionCadence]
-    quantity: NotRequired[float]
-    current_period_start: NotRequired[str]
-    current_period_end: NotRequired[str]
-    previously_billed_at: NotRequired[str | None]
-    next_billed_at: NotRequired[str | None]
-    trial_end: NotRequired[str | None]
-    cancel_at_period_end: NotRequired[bool]
-    canceled_at: NotRequired[str | None]
-    created_at: NotRequired[str]
-    items: NotRequired[list[SubscriptionItem]]
-    metadata: NotRequired[dict[str, Any]]
+    customer: SubscriptionCustomer | None
+    payment_method_id: str | None
+    collection_method: str | None
+    currency: str | None
+    amount: str | None
+    billing_cycle: BillingCycle | None
+    quantity: float | None
+    current_period_start: str | None
+    current_period_end: str | None
+    previously_billed_at: str | None
+    next_billed_at: str | None
+    trial_end: str | None
+    cancel_at_period_end: bool | None
+    canceled_at: str | None
+    created_at: str | None
+    items: list[SubscriptionItem] | None
+    metadata: dict[str, Any] | None
 
 
 class SubscriptionListParams(TypedDict, total=False):
@@ -370,9 +378,9 @@ class SubscriptionListParams(TypedDict, total=False):
     status: Literal["trialing", "active", "past_due", "unpaid", "canceled"]
 
 
-class SubscriptionListResponse(TypedDict):
-    items: list[SubscriptionResponse]
-    pagination: PaginationResponse
+class SubscriptionList(Model):
+    items: list[Subscription]
+    pagination: Pagination
 
 
 class CancelSubscriptionRequest(TypedDict, total=False):
@@ -380,7 +388,7 @@ class CancelSubscriptionRequest(TypedDict, total=False):
     reason: str | None
 
 
-class PortalSessionResponse(TypedDict):
+class PortalSession(Model):
     id: str
     url: str
 
@@ -388,21 +396,21 @@ class PortalSessionResponse(TypedDict):
 # Balances and banks
 
 
-class Balance(TypedDict):
+class Balance(Model):
     currency: str
     available_balance: str
     pending_balance: str
-    held_for_disputes: NotRequired[str]
+    held_for_disputes: str | None
 
 
-class BalancesResponse(TypedDict):
+class Balances(Model):
     account_id: str
     balances: list[Balance]
     total_balance_usd: str
-    pending_settlements_by_day: NotRequired[list[dict[str, Any]]]
+    pending_settlements_by_day: list[dict[str, Any]] | None
 
 
-class Bank(TypedDict):
+class Bank(Model):
     name: str
     code: str
 
@@ -411,7 +419,7 @@ class BankListParams(TypedDict, total=False):
     country: str
 
 
-class BankListResponse(TypedDict):
+class BankList(Model):
     country: str
     banks: list[Bank]
 
@@ -422,7 +430,7 @@ class ResolveBankAccountRequest(TypedDict):
     country: NotRequired[str | None]
 
 
-class ResolveBankAccountResponse(TypedDict):
+class ResolvedBankAccount(Model):
     resolved: bool
     account_name: str | None
     account_number: str | None
@@ -449,26 +457,26 @@ class CreatePayoutDestinationRequest(TypedDict):
     metadata: NotRequired[dict[str, JsonValue] | None]
 
 
-class PayoutDestinationResponse(TypedDict):
+class PayoutDestination(Model):
     id: str
     name: str
     type: str
     currency: str
     status: str
-    is_usable: NotRequired[bool]
-    is_default: NotRequired[bool]
-    status_reason: NotRequired[str | None]
-    account_number: NotRequired[str | None]
-    account_name: NotRequired[str | None]
-    bank_code: NotRequired[str | None]
-    bank_name: NotRequired[str | None]
-    phone_number: NotRequired[str | None]
-    mobile_provider: NotRequired[str | None]
-    wallet_address: NotRequired[str | None]
-    network: NotRequired[str | None]
-    reviewed_at: NotRequired[str | None]
-    created_at: NotRequired[str | None]
-    updated_at: NotRequired[str | None]
+    is_usable: bool | None
+    is_default: bool | None
+    status_reason: str | None
+    account_number: str | None
+    account_name: str | None
+    bank_code: str | None
+    bank_name: str | None
+    phone_number: str | None
+    mobile_provider: str | None
+    wallet_address: str | None
+    network: str | None
+    reviewed_at: str | None
+    created_at: str | None
+    updated_at: str | None
 
 
 class PayoutDestinationListParams(TypedDict, total=False):
@@ -478,8 +486,8 @@ class PayoutDestinationListParams(TypedDict, total=False):
     offset: int
 
 
-class PayoutDestinationListResponse(TypedDict):
-    destinations: list[PayoutDestinationResponse]
+class PayoutDestinationList(Model):
+    destinations: list[PayoutDestination]
     total: int
     limit: int
     offset: int
@@ -492,7 +500,7 @@ class CreatePayoutQuoteRequest(TypedDict):
     payout_method: NotRequired[str | None]
 
 
-class PayoutQuoteResponse(TypedDict):
+class PayoutQuote(Model):
     quote_id: str
     from_currency: str
     to_currency: str
@@ -524,19 +532,19 @@ class QuotedPayoutRequest(_CreatePayoutCommon):
 CreatePayoutRequest = Union[AmountPayoutRequest, QuotedPayoutRequest]
 
 
-class PayoutResponse(TypedDict):
+class Payout(Model):
     id: str
     status: str
     amount: str
     currency: str
-    source_currency: NotRequired[str | None]
-    fee: NotRequired[str | None]
-    total_debited: NotRequired[str | None]
-    destination: NotRequired[str | None]
-    reference: NotRequired[str | None]
-    failure_reason: NotRequired[str | None]
-    created_at: NotRequired[str | None]
-    completed_at: NotRequired[str | None]
+    source_currency: str | None
+    fee: str | None
+    total_debited: str | None
+    destination: str | None
+    reference: str | None
+    failure_reason: str | None
+    created_at: str | None
+    completed_at: str | None
 
 
 class PayoutListParams(TypedDict, total=False):
@@ -545,15 +553,15 @@ class PayoutListParams(TypedDict, total=False):
     status_filter: Literal["requested", "pending", "processing", "approved", "rejected", "completed", "failed"]
 
 
-class PayoutListResponse(TypedDict):
+class PayoutList(Model):
     total: int
-    items: list[PayoutResponse]
+    items: list[Payout]
 
 
 # Webhooks
 
 
-class WebhookEvent(TypedDict):
+class WebhookEvent(Model):
     id: str
     type: str
     created_at: str

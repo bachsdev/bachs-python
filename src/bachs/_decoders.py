@@ -1,14 +1,15 @@
-"""Response guards: validate the fields each type promises, then return the actual object with any extra fields."""
+"""Response guards: validate the fields each model promises, then wrap the JSON in that model, extra fields included."""
 
 from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 from . import types as t
+from ._models import Model
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Model)
 Check = Callable[[Any], bool]
 
 
@@ -316,29 +317,29 @@ def _payouts(value: Any) -> bool:
     return record(value) and _num(value.get("total")) and _list_of(_payout)(value.get("items"))
 
 
-def _decoder(check: Check, shape: str, result: type[T]) -> Callable[[Any], T]:
+def _decoder(check: Check, shape: str, model: type[T]) -> Callable[[Any], T]:
     def decode(value: Any) -> T:
         if not check(value):
             raise ValueError(f"Response does not match the supported {shape} shape.")
-        return cast(T, value)
+        return model(value)
 
     return decode
 
 
-decode_product = _decoder(_product, "product", t.ProductResponse)
-decode_product_list = _decoder(_product_list, "product list", t.ProductListResponse)
+decode_product = _decoder(_product, "product", t.Product)
+decode_product_list = _decoder(_product_list, "product list", t.ProductList)
 decode_checkout_created = _decoder(_created_checkout, "checkout creation", t.CheckoutSessionCreated)
-decode_checkout = _decoder(_checkout, "checkout", t.CheckoutSessionResponse)
-decode_payment = _decoder(_payment, "payment", t.PaymentResponse)
-decode_payments = _decoder(_payments, "payment list", t.PaymentListResponse)
-decode_subscription = _decoder(_subscription, "subscription", t.SubscriptionResponse)
-decode_subscriptions = _decoder(_subscriptions, "subscription list", t.SubscriptionListResponse)
-decode_portal = _decoder(_portal, "portal session", t.PortalSessionResponse)
-decode_balances = _decoder(_balances, "balances", t.BalancesResponse)
-decode_banks = _decoder(_banks, "banks", t.BankListResponse)
-decode_resolved_account = _decoder(_resolved_account, "bank account resolution", t.ResolveBankAccountResponse)
-decode_destination = _decoder(_destination, "payout destination", t.PayoutDestinationResponse)
-decode_destinations = _decoder(_destinations, "payout destination list", t.PayoutDestinationListResponse)
-decode_quote = _decoder(_quote, "payout quote", t.PayoutQuoteResponse)
-decode_payout = _decoder(_payout, "payout", t.PayoutResponse)
-decode_payouts = _decoder(_payouts, "payout list", t.PayoutListResponse)
+decode_checkout = _decoder(_checkout, "checkout", t.CheckoutSession)
+decode_payment = _decoder(_payment, "payment", t.Payment)
+decode_payments = _decoder(_payments, "payment list", t.PaymentList)
+decode_subscription = _decoder(_subscription, "subscription", t.Subscription)
+decode_subscriptions = _decoder(_subscriptions, "subscription list", t.SubscriptionList)
+decode_portal = _decoder(_portal, "portal session", t.PortalSession)
+decode_balances = _decoder(_balances, "balances", t.Balances)
+decode_banks = _decoder(_banks, "banks", t.BankList)
+decode_resolved_account = _decoder(_resolved_account, "bank account resolution", t.ResolvedBankAccount)
+decode_destination = _decoder(_destination, "payout destination", t.PayoutDestination)
+decode_destinations = _decoder(_destinations, "payout destination list", t.PayoutDestinationList)
+decode_quote = _decoder(_quote, "payout quote", t.PayoutQuote)
+decode_payout = _decoder(_payout, "payout", t.Payout)
+decode_payouts = _decoder(_payouts, "payout list", t.PayoutList)

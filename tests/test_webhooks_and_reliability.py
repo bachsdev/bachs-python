@@ -48,19 +48,19 @@ def frozen_wall_clock(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_41_legacy_signatures_verify_exact_utf8_bytes_and_preserve_the_envelope() -> None:
-    assert webhooks.construct_event(raw, legacy(raw), secret) == event
+    assert webhooks.construct_event(raw, legacy(raw), secret).to_dict() == event
     unicode = json.dumps({**event, "data": {"name": "Synthetic café"}}, ensure_ascii=False, separators=(",", ":"))
     encoded = unicode.encode("utf-8")
-    assert webhooks.construct_event(encoded, httpx.Headers(legacy(unicode)), secret)["data"]["name"] == "Synthetic café"
-    assert webhooks.construct_event(bytearray(encoded), legacy(encoded), secret)["id"] == event["id"]
+    assert webhooks.construct_event(encoded, httpx.Headers(legacy(unicode)), secret).data["name"] == "Synthetic café"
+    assert webhooks.construct_event(bytearray(encoded), legacy(encoded), secret).id == event["id"]
 
 
 def test_42_v2_accepts_a_matching_rotation_signature_beyond_the_first_and_unknown_types() -> None:
     future = json.dumps({**event, "type": "future.event"}, separators=(",", ":"))
     header = f"t={seconds},v1={signature(future, key='previous-synthetic-secret')},v1={signature(future)}"
-    assert webhooks.construct_event(future, {"x-bachs-signature-v2": header}, secret)["type"] == "future.event"
+    assert webhooks.construct_event(future, {"x-bachs-signature-v2": header}, secret).type == "future.event"
     verified = webhooks.construct_event(future, {"X-Bachs-Signature-V2": header}, "previous-synthetic-secret")
-    assert verified["future_field"] is True  # type: ignore[typeddict-item]
+    assert verified.future_field is True  # type: ignore[attr-defined]
 
 
 def test_43_wrong_secret_changed_body_and_reserialized_json_fail() -> None:
@@ -71,14 +71,14 @@ def test_43_wrong_secret_changed_body_and_reserialized_json_fail() -> None:
     spaced = json.dumps(event, indent=2)
     with pytest.raises(BachsWebhookError):
         webhooks.construct_event(raw, legacy(spaced), secret)
-    assert webhooks.construct_event(spaced, legacy(spaced), secret) == event
+    assert webhooks.construct_event(spaced, legacy(spaced), secret).to_dict() == event
 
 
 def test_44_stale_and_future_timestamps_are_rejected_at_an_explicit_boundary() -> None:
     for timestamp in (str(seconds - 301), str(seconds + 301)):
         with pytest.raises(BachsWebhookError):
             webhooks.construct_event(raw, legacy(raw, timestamp), secret)
-    assert webhooks.construct_event(raw, legacy(raw, str(seconds - 300)), secret)["id"] == event["id"]
+    assert webhooks.construct_event(raw, legacy(raw, str(seconds - 300)), secret).id == event["id"]
     with pytest.raises(BachsWebhookError):
         webhooks.construct_event(raw, legacy(raw, str(seconds - 10)), secret, tolerance=5)
     for timestamp in ("123abc", "-1", "NaN", "9007199254740992", "١٢٣", "1" * 5000, f"{seconds}\n"):
@@ -111,7 +111,7 @@ def test_framework_header_objects_verify_and_reject_duplicates() -> None:
     stdlib = Message()
     stdlib["X-Bachs-Signature-V2"] = v2
     for headers in (EnvironHeaders(environ), Headers({"X-Bachs-Signature-V2": v2}), stdlib):
-        assert webhooks.construct_event(raw, headers, secret) == event, type(headers).__name__
+        assert webhooks.construct_event(raw, headers, secret).to_dict() == event, type(headers).__name__
     repeated = Headers([("X-Bachs-Signature-V2", v2), ("x-bachs-signature-v2", v2)])
     with pytest.raises(BachsWebhookError):
         webhooks.construct_event(raw, repeated, secret)
@@ -182,7 +182,7 @@ def test_47_all_v1_writes_send_once_on_temporary_http_errors_and_lost_responses(
 def test_48_shared_retry_and_deadline_policy_reaches_every_resource(mock: Mock, clock: FakeClock) -> None:
     mock.responses = [json_response({"detail": "Busy"}, 503),
                       {"id": "pay_synthetic", "status": "pending", "amount": "1.00", "currency": "USD"}]
-    assert mock.client().payouts.get("pay_synthetic")["status"] == "pending"
+    assert mock.client().payouts.get("pay_synthetic").status == "pending"
     assert len(mock.calls) == 2 and clock.sleeps == [0.5]
 
     def never_answers(request: httpx.Request) -> httpx.Response:

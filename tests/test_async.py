@@ -117,7 +117,7 @@ async def test_async_and_sync_clients_send_identical_requests_and_return_the_sam
     sync_mock, async_mock = Mock(responses=[response]), Mock(responses=[response])
     sync_result = operation(sync_mock.client())
     async_result = await operation(async_mock.async_client())
-    assert sync_result == async_result == response
+    assert sync_result == async_result and sync_result.to_dict() == response
     (sent_sync,), (sent_async,) = sync_mock.calls, async_mock.calls
     assert (sent_sync.method, str(sent_sync.url), sent_sync.body) == (
         sent_async.method, str(sent_async.url), sent_async.body)
@@ -128,7 +128,7 @@ async def test_async_and_sync_clients_send_identical_requests_and_return_the_sam
 async def test_reads_retry_with_backoff_and_hints(mock: Mock, async_clock: FakeClock) -> None:
     mock.responses = [json_response({"detail": "busy"}, 429, {"retry-after": "1"}),
                       json_response({"detail": "busy"}, 503), product]
-    assert (await mock.async_client().products.get("prod_example"))["id"] == "prod_example"
+    assert (await mock.async_client().products.get("prod_example")).id == "prod_example"
     assert len(mock.calls) == 3 and async_clock.sleeps == [1.0, 1.0]
 
     mock.calls.clear()

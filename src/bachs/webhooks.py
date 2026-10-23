@@ -9,7 +9,7 @@ import math
 import re
 import time
 from collections.abc import Iterable, Mapping
-from typing import Any, Protocol, Union, cast
+from typing import Any, Protocol, Union
 
 from ._errors import BachsConfigError, BachsWebhookError
 from .types import WebhookEvent
@@ -123,4 +123,4 @@ def construct_event(
         raise BachsWebhookError("Verified webhook body is not valid UTF-8 JSON.") from cause
     if not _event(parsed):
         raise BachsWebhookError("Verified webhook body is not a supported event envelope.")
-    return cast(WebhookEvent, parsed)
+    return WebhookEvent(parsed)

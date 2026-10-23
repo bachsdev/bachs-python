@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from .. import types as t
 from .._decoders import decode_portal
 from .._transport import id_path
-from ..types import PortalSessionResponse
 from ._base import AsyncResource, Resource
 
 
@@ -13,7 +13,7 @@ def _path(customer_id: str) -> str:
 class CustomerPortal(Resource):
     def create_session(
         self, customer_id: str, *, idempotency_key: str | None = None, timeout: float | None = None
-    ) -> PortalSessionResponse:
+    ) -> t.PortalSession:
         """The returned URL carries a credential: redirect the customer to it and do not log or share it."""
         return self._transport.request(
             "POST", _path(customer_id), decode_portal, idempotency_key=idempotency_key, timeout=timeout
@@ -23,7 +23,7 @@ class CustomerPortal(Resource):
 class AsyncCustomerPortal(AsyncResource):
     async def create_session(
         self, customer_id: str, *, idempotency_key: str | None = None, timeout: float | None = None
-    ) -> PortalSessionResponse:
+    ) -> t.PortalSession:
         """The returned URL carries a credential: redirect the customer to it and do not log or share it."""
         return await self._transport.request(
             "POST", _path(customer_id), decode_portal, idempotency_key=idempotency_key, timeout=timeout

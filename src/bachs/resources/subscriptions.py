@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from .. import types as t
 from .._decoders import decode_subscription, decode_subscriptions
 from .._transport import id_path
-from ..types import CancelSubscriptionRequest, SubscriptionListParams, SubscriptionListResponse, SubscriptionResponse
 from ._base import AsyncResource, Resource
 
 
 class Subscriptions(Resource):
     def get(
         self, subscription_id: str, *, timeout: float | None = None, max_retries: int | None = None
-    ) -> SubscriptionResponse:
+    ) -> t.Subscription:
         return self._transport.request(
             "GET", "/v1/subscriptions/" + id_path(subscription_id, "subscription_id"), decode_subscription,
             timeout=timeout, max_retries=max_retries,
@@ -17,11 +17,11 @@ class Subscriptions(Resource):
 
     def list(
         self,
-        params: SubscriptionListParams | None = None,
+        params: t.SubscriptionListParams | None = None,
         *,
         timeout: float | None = None,
         max_retries: int | None = None,
-    ) -> SubscriptionListResponse:
+    ) -> t.SubscriptionList:
         return self._transport.request(
             "GET", "/v1/subscriptions", decode_subscriptions, query=params, timeout=timeout, max_retries=max_retries
         )
@@ -29,11 +29,11 @@ class Subscriptions(Resource):
     def cancel(
         self,
         subscription_id: str,
-        params: CancelSubscriptionRequest | None = None,
+        params: t.CancelSubscriptionRequest | None = None,
         *,
         idempotency_key: str | None = None,
         timeout: float | None = None,
-    ) -> SubscriptionResponse:
+    ) -> t.Subscription:
         """Cancel immediately (``cancel_at_period_end: False``) or at the end of the current period."""
         return self._transport.request(
             "DELETE", "/v1/subscriptions/" + id_path(subscription_id, "subscription_id"), decode_subscription,
@@ -45,7 +45,7 @@ class Subscriptions(Resource):
 class AsyncSubscriptions(AsyncResource):
     async def get(
         self, subscription_id: str, *, timeout: float | None = None, max_retries: int | None = None
-    ) -> SubscriptionResponse:
+    ) -> t.Subscription:
         return await self._transport.request(
             "GET", "/v1/subscriptions/" + id_path(subscription_id, "subscription_id"), decode_subscription,
             timeout=timeout, max_retries=max_retries,
@@ -53,11 +53,11 @@ class AsyncSubscriptions(AsyncResource):
 
     async def list(
         self,
-        params: SubscriptionListParams | None = None,
+        params: t.SubscriptionListParams | None = None,
         *,
         timeout: float | None = None,
         max_retries: int | None = None,
-    ) -> SubscriptionListResponse:
+    ) -> t.SubscriptionList:
         return await self._transport.request(
             "GET", "/v1/subscriptions", decode_subscriptions, query=params, timeout=timeout, max_retries=max_retries
         )
@@ -65,11 +65,11 @@ class AsyncSubscriptions(AsyncResource):
     async def cancel(
         self,
         subscription_id: str,
-        params: CancelSubscriptionRequest | None = None,
+        params: t.CancelSubscriptionRequest | None = None,
         *,
         idempotency_key: str | None = None,
         timeout: float | None = None,
-    ) -> SubscriptionResponse:
+    ) -> t.Subscription:
         """Cancel immediately (``cancel_at_period_end: False``) or at the end of the current period."""
         return await self._transport.request(
             "DELETE", "/v1/subscriptions/" + id_path(subscription_id, "subscription_id"), decode_subscription,

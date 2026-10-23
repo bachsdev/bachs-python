@@ -92,8 +92,8 @@ def test_22_creation_preserves_amounts_omission_null_keys_and_input(server: Any)
     assert "price_type" not in json.loads(records[0].body)["price"]
     assert records[0].headers["idempotency-key"] == "catalog-pro-plan"
     assert "idempotency-key" not in records[1].headers
-    assert result["price"]["amount"] == "12.00"
-    assert result["future_field"] == {"preserved": True}  # type: ignore[typeddict-item]
+    assert result.price.amount == "12.00"
+    assert result.future_field == {"preserved": True}  # type: ignore[attr-defined]
 
 
 def test_23_retrieval_keeps_an_identifier_inside_one_path_segment(server: Any) -> None:
@@ -116,7 +116,9 @@ def test_24_listing_preserves_filters_envelope_and_explicit_pagination(server: A
     result = sdk.products.list({"limit": 2, "cursor": "cursor+ /?", "include_archived": False})
     query = parse_qs(urlsplit(records[0].path).query)
     assert query == {"cursor": ["cursor+ /?"], "limit": ["2"], "include_archived": ["false"]}
-    assert result == page
+    assert result.to_dict() == page
+    assert result.pagination.next_cursor == "next+ /?" and result.pagination.has_more is True
+    assert result.items[0].price.currency_options == []
     assert len(records) == 1, "has_more must not cause hidden pagination."
     sdk.products.list()
     assert records[1].path == "/v1/products"
@@ -198,13 +200,13 @@ def test_27_deadline_bounds_waiting_for_headers_and_reading_the_body(mock: Mock,
 def test_29_reads_recover_exhaust_their_limit_and_respect_hints_and_deadline(mock: Mock, clock: FakeClock) -> None:
     mock.responses = [json_response({"detail": "busy"}, 429, {"retry-after": "1"}),
                       json_response({"detail": "busy"}, 503), product()]
-    assert mock.client().products.get("prod_example")["id"] == "prod_example"
+    assert mock.client().products.get("prod_example").id == "prod_example"
     assert len(mock.calls) == 3 and clock.sleeps == [1.0, 1.0]
 
     mock.calls.clear()
     clock.sleeps.clear()
     mock.responses = [httpx.ReadError("connection lost"), product()]
-    assert mock.client().products.get("prod_example")["id"] == "prod_example"
+    assert mock.client().products.get("prod_example").id == "prod_example"
     assert len(mock.calls) == 2 and clock.sleeps == [0.5]
 
     mock.calls.clear()

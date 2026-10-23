@@ -11,6 +11,7 @@ from ._errors import (
     BachsTimeoutError,
     BachsWebhookError,
 )
+from ._models import Model
 from ._version import __version__
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "BachsResponseError",
     "BachsTimeoutError",
     "BachsWebhookError",
+    "Model",
     "__version__",
     "types",
     "webhooks",
