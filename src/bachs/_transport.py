@@ -85,6 +85,10 @@ def id_path(value: Any, name: str) -> str:
     """Keep an identifier inside one path segment, like encodeURIComponent."""
     if not isinstance(value, str) or value.strip() == "":
         raise BachsConfigError(f"{name} must be a non-empty string.")
+    # Percent-encoding leaves "." and ".." alone, and URL parsers then resolve them as path navigation,
+    # which would send the request (and the API key) to a different endpoint.
+    if value in (".", ".."):
+        raise BachsConfigError(f"{name} must be an identifier, not a path segment like {value!r}.")
     return quote(value, safe="-_.!~*'()")
 
 

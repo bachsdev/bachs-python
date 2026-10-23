@@ -37,7 +37,7 @@ jobs:
           fi
 
       - name: Install the package and dev tools
-        run: python -m pip install -e ".[dev]" build
+        run: python -m pip install -e ".[dev]"
 
       - name: Lint, check types and run tests
         run: |
@@ -45,8 +45,12 @@ jobs:
           mypy
           pytest
 
-      - name: Build the sdist and wheel
-        run: python -m build --outdir dist
+      # The build tools are pinned so the published files do not depend on whatever is current on release
+      # day. hatchling is pinned in pyproject.toml's build-system table and installed by build in isolation.
+      - name: Build the sdist and wheel with pinned tools
+        run: |
+          python -m pip install --upgrade "build==1.6.1"
+          python -m build --outdir dist
 
       - name: Verify package contents
         run: python scripts/verify_package.py dist

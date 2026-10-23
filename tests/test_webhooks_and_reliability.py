@@ -215,8 +215,15 @@ def test_49_ambiguous_request_modes_fail_before_send_and_unsupported_success_is_
         with pytest.raises(BachsConfigError):
             sdk.checkout_sessions.create(checkout_input)  # type: ignore[arg-type]
     for resource in (sdk.checkout_sessions, sdk.payments, sdk.subscriptions, sdk.payout_destinations, sdk.payouts):
+        for bad_id in ("", "   ", ".", ".."):
+            with pytest.raises(BachsConfigError):
+                resource.get(bad_id)
+    # Dot IDs would otherwise resolve as path navigation and reach a different endpoint with the API key.
+    for dotted in (lambda: sdk.customer_portal.create_session(".."), lambda: sdk.subscriptions.cancel("."),
+                   lambda: sdk.products.get("..")):
         with pytest.raises(BachsConfigError):
-            resource.get("")
+            dotted()
+    assert sdk.payouts.get.__name__ == "get"
     with pytest.raises(BachsConfigError):
         sdk.payout_destinations.create({"currency": "NGN", "metadata": {"bad": float("nan")}})
     with pytest.raises(BachsConfigError):
